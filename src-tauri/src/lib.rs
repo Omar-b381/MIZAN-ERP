@@ -1,3 +1,4 @@
+pub mod accounting;
 pub mod activity;
 pub mod auth;
 pub mod commands;
@@ -102,7 +103,21 @@ pub fn run() {
             commands::cmd_update_purchase_order,
             commands::cmd_confirm_purchase_order,
             commands::cmd_cancel_purchase_order,
-            commands::cmd_delete_purchase_order
+            commands::cmd_delete_purchase_order,
+            // Phase 5: Accounting, Invoices & Payments
+            commands::cmd_list_accounts,
+            commands::cmd_create_account,
+            commands::cmd_list_journals,
+            commands::cmd_list_moves,
+            commands::cmd_get_move,
+            commands::cmd_create_invoice,
+            commands::cmd_create_journal_entry,
+            commands::cmd_post_move,
+            commands::cmd_cancel_move,
+            commands::cmd_reverse_move,
+            commands::cmd_list_payments,
+            commands::cmd_create_and_post_payment,
+            commands::cmd_get_trial_balance
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

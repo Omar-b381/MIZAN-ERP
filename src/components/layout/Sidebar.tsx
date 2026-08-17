@@ -17,6 +17,9 @@ import {
   ArrowLeftRight,
   ClipboardCheck,
   FolderTree,
+  Receipt,
+  BookOpen,
+  CreditCard,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { ModuleRecord } from '../../types';
@@ -104,6 +107,30 @@ export const Sidebar: React.FC<SidebarProps> = ({ modules }) => {
       icon: ShoppingBag,
       view: 'purchases',
       permission: 'purchases.view',
+    },
+  ];
+
+  const accountingNavItems = [
+    {
+      id: 'invoices',
+      label: t('nav.invoices', 'الفواتير والتحصيل المالي'),
+      icon: Receipt,
+      view: 'invoices',
+      permission: 'invoices.view',
+    },
+    {
+      id: 'journal_entries',
+      label: t('nav.journalEntries', 'دليل الحسابات وقيود اليومية'),
+      icon: BookOpen,
+      view: 'journal_entries',
+      permission: 'accounting.view',
+    },
+    {
+      id: 'payments',
+      label: t('nav.payments', 'سندات القبض والصرف'),
+      icon: CreditCard,
+      view: 'payments',
+      permission: 'payments.view',
     },
   ];
 
@@ -288,6 +315,38 @@ export const Sidebar: React.FC<SidebarProps> = ({ modules }) => {
           </div>
         )}
 
+        {/* Accounting & Financial Management */}
+        {(isModuleActive('accounting') || isModuleActive('invoices') || isModuleActive('payments')) && (
+          <div className="space-y-1 pt-2 border-t border-border/60">
+            <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+              <span>{t('modules.accountingSection', 'الحسابات العامة والفواتير')}</span>
+              <span className="text-[10px] text-emerald-600 font-semibold">نشط</span>
+            </div>
+            {accountingNavItems.map((item) => {
+              if (item.permission && !hasPermission(item.permission)) {
+                return null;
+              }
+              const Icon = item.icon;
+              const isActive = activeView === item.view;
+
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveView(item.view)}
+                  className={`w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-foreground/80 hover:bg-secondary hover:text-foreground'
+                  }`}
+                >
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-primary-foreground' : 'text-primary'}`} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Future Business Modules */}
         <div className="space-y-1 pt-2 border-t border-border/60">
           <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
@@ -329,7 +388,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ modules }) => {
       {/* Footer Info */}
       <div className="p-4 border-t border-border/40 text-center">
         <p className="text-[11px] text-muted-foreground font-medium">
-          Mizan ERP v0.4 • Phase 4
+          Mizan ERP v0.5 • Phase 5
         </p>
       </div>
     </aside>

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use tauri::State;
-use crate::{activity, auth, companies, inventory, modules, partners, products, purchases, rbac, sales, settings, AppState};
+use crate::{accounting, activity, auth, companies, inventory, modules, partners, products, purchases, rbac, sales, settings, AppState};
 
 // ----------------------------------------------------
 // Modules Commands
@@ -805,6 +805,143 @@ pub async fn cmd_delete_purchase_order(
     order_id: i64,
 ) -> Result<(), String> {
     purchases::delete_purchase_order(&state.pool, order_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ----------------------------------------------------
+// Accounting, Invoicing & Payments Commands (Phase 5)
+// ----------------------------------------------------
+#[tauri::command]
+pub async fn cmd_list_accounts(
+    state: State<'_, AppState>,
+    company_id: i64,
+) -> Result<Vec<accounting::Account>, String> {
+    accounting::list_accounts(&state.pool, company_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_create_account(
+    state: State<'_, AppState>,
+    input: accounting::CreateAccountInput,
+) -> Result<accounting::Account, String> {
+    accounting::create_account(&state.pool, input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_list_journals(
+    state: State<'_, AppState>,
+    company_id: i64,
+) -> Result<Vec<accounting::AccountJournal>, String> {
+    accounting::list_journals(&state.pool, company_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_list_moves(
+    state: State<'_, AppState>,
+    company_id: i64,
+    move_type: Option<String>,
+    state_filter: Option<String>,
+    partner_id: Option<i64>,
+) -> Result<Vec<accounting::AccountMove>, String> {
+    accounting::list_moves(&state.pool, company_id, move_type, state_filter, partner_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_get_move(
+    state: State<'_, AppState>,
+    move_id: i64,
+) -> Result<Option<accounting::AccountMoveDetail>, String> {
+    accounting::get_move(&state.pool, move_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_create_invoice(
+    state: State<'_, AppState>,
+    input: accounting::CreateInvoiceInput,
+) -> Result<accounting::AccountMoveDetail, String> {
+    accounting::create_invoice(&state.pool, input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_create_journal_entry(
+    state: State<'_, AppState>,
+    input: accounting::CreateJournalEntryInput,
+) -> Result<accounting::AccountMoveDetail, String> {
+    accounting::create_journal_entry(&state.pool, input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_post_move(
+    state: State<'_, AppState>,
+    move_id: i64,
+) -> Result<accounting::AccountMoveDetail, String> {
+    accounting::post_move(&state.pool, move_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_cancel_move(
+    state: State<'_, AppState>,
+    move_id: i64,
+) -> Result<accounting::AccountMoveDetail, String> {
+    accounting::cancel_move(&state.pool, move_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_reverse_move(
+    state: State<'_, AppState>,
+    move_id: i64,
+) -> Result<accounting::AccountMoveDetail, String> {
+    accounting::reverse_move(&state.pool, move_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_list_payments(
+    state: State<'_, AppState>,
+    company_id: i64,
+    partner_id: Option<i64>,
+) -> Result<Vec<accounting::AccountPayment>, String> {
+    accounting::list_payments(&state.pool, company_id, partner_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_create_and_post_payment(
+    state: State<'_, AppState>,
+    input: accounting::CreatePaymentInput,
+) -> Result<accounting::AccountPayment, String> {
+    accounting::create_and_post_payment(&state.pool, input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_get_trial_balance(
+    state: State<'_, AppState>,
+    company_id: i64,
+) -> Result<Vec<accounting::TrialBalanceRow>, String> {
+    accounting::get_trial_balance(&state.pool, company_id)
         .await
         .map_err(|e| e.to_string())
 }

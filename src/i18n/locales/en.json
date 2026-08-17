@@ -18,6 +18,9 @@
     "adjustments": "Physical Inventory",
     "locations": "Locations & Warehouses",
     "accounting": "Accounting",
+    "invoices": "Invoices & Billing",
+    "journalEntries": "General Ledger & COA",
+    "payments": "Receipts & Payments",
     "hr": "Human Resources",
     "modules": "Modules Manager",
     "settings": "Settings",
@@ -233,6 +236,18 @@
     "subtitle": "Chronological audit trail of all actions and modifications",
     "empty": "No activity logged yet",
     "audit_trail": "Security and Operations Trail"
+  },
+  "invoices": {
+    "title": "Invoices & Financial Billing",
+    "subtitle": "Customer Invoices, Vendor Bills, 14% Egyptian VAT calculation, and Cash/Bank settlement"
+  },
+  "accounting": {
+    "title": "General Ledger & Double-Entry Journals",
+    "subtitle": "Egyptian Unified Chart of Accounts, Double-Entry Balanced Moves, and Live Trial Balance"
+  },
+  "payments": {
+    "title": "Payment Vouchers & Receipts",
+    "subtitle": "Customer Inbound Receipts, Vendor Outbound Payments, and Automated Cash/Bank moves"
   },
   "common": {
     "save": "Save Changes",

@@ -33,6 +33,17 @@ import {
   PurchaseOrderDetail,
   CreatePurchaseOrderInput,
   UpdatePurchaseOrderInput,
+  Account,
+  AccountJournal,
+  AccountMove,
+  AccountMoveLine,
+  AccountMoveDetail,
+  AccountPayment,
+  TrialBalanceRow,
+  CreateAccountInput,
+  CreateInvoiceInput,
+  CreateJournalEntryInput,
+  CreatePaymentInput,
 } from '../types';
 
 let mockModules: ModuleRecord[] = [
@@ -445,6 +456,120 @@ let mockPurchaseOrderLines: PurchaseOrderLine[] = [
     created_at: new Date().toISOString(),
   },
 ];
+
+let mockAccounts: Account[] = [
+  { id: 1, company_id: 1, code: '1010', name: 'الخزينة الرئيسية (النقدية)', type: 'asset', is_reconciled: 0, is_active: 1, created_at: new Date().toISOString() },
+  { id: 2, company_id: 1, code: '1020', name: 'البنك الأهلي المصري (حساب جاري)', type: 'asset', is_reconciled: 0, is_active: 1, created_at: new Date().toISOString() },
+  { id: 3, company_id: 1, code: '1030', name: 'العملاء والمدينون (حسابات القبض)', type: 'asset', is_reconciled: 1, is_active: 1, created_at: new Date().toISOString() },
+  { id: 4, company_id: 1, code: '1040', name: 'مخزون البضائع والمنتجات', type: 'asset', is_reconciled: 0, is_active: 1, created_at: new Date().toISOString() },
+  { id: 5, company_id: 1, code: '2010', name: 'الموردون والدائنون (حسابات الدفع)', type: 'liability', is_reconciled: 1, is_active: 1, created_at: new Date().toISOString() },
+  { id: 6, company_id: 1, code: '2020', name: 'ضريبة القيمة المضافة المحصلة (مبيعات 14%)', type: 'liability', is_reconciled: 0, is_active: 1, created_at: new Date().toISOString() },
+  { id: 7, company_id: 1, code: '2025', name: 'ضريبة القيمة المضافة المدفوعة (مشتريات 14%)', type: 'liability', is_reconciled: 0, is_active: 1, created_at: new Date().toISOString() },
+  { id: 8, company_id: 1, code: '3010', name: 'رأس المال المدفوع', type: 'equity', is_reconciled: 0, is_active: 1, created_at: new Date().toISOString() },
+  { id: 9, company_id: 1, code: '3020', name: 'الأرباح والخسائر المبقاة', type: 'equity', is_reconciled: 0, is_active: 1, created_at: new Date().toISOString() },
+  { id: 10, company_id: 1, code: '4010', name: 'إيرادات المبيعات والخدمات', type: 'income', is_reconciled: 0, is_active: 1, created_at: new Date().toISOString() },
+  { id: 11, company_id: 1, code: '5010', name: 'تكلفة البضاعة المباعة (COGS)', type: 'expense', is_reconciled: 0, is_active: 1, created_at: new Date().toISOString() },
+  { id: 12, company_id: 1, code: '5020', name: 'مصروفات عمومية وإدارية', type: 'expense', is_reconciled: 0, is_active: 1, created_at: new Date().toISOString() },
+];
+
+let mockJournals: AccountJournal[] = [
+  { id: 1, company_id: 1, name: 'دفتر فواتير المبيعات', code: 'INV', type: 'sale', default_account_id: 10, created_at: new Date().toISOString() },
+  { id: 2, company_id: 1, name: 'دفتر فواتير المشتريات', code: 'BILL', type: 'purchase', default_account_id: 11, created_at: new Date().toISOString() },
+  { id: 3, company_id: 1, name: 'دفتر الخزينة والنقدية', code: 'CSH', type: 'cash', default_account_id: 1, created_at: new Date().toISOString() },
+  { id: 4, company_id: 1, name: 'دفتر البنك والمعاملات المصرفية', code: 'BNK', type: 'bank', default_account_id: 2, created_at: new Date().toISOString() },
+  { id: 5, company_id: 1, name: 'دفتر العمليات المتنوعة والقيود', code: 'MISC', type: 'general', default_account_id: null, created_at: new Date().toISOString() },
+];
+
+let mockMoves: AccountMove[] = [
+  {
+    id: 1,
+    company_id: 1,
+    name: 'INV/2026/00001',
+    date: new Date().toISOString().split('T')[0],
+    journal_id: 1,
+    journal_name: 'دفتر فواتير المبيعات',
+    partner_id: 2,
+    partner_name: 'شركة الأهرام للتجارة',
+    move_type: 'out_invoice',
+    state: 'posted',
+    amount_untaxed_cents: 7000000,
+    amount_tax_cents: 980000,
+    amount_total_cents: 7980000,
+    currency: 'EGP',
+    invoice_date_due: '2026-09-30',
+    payment_state: 'not_paid',
+    origin: 'SO/2026/00001',
+    note: 'فاتورة مبيعات توريد حواسب مكتبية',
+    reversed_entry_id: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+];
+
+let mockMoveLines: AccountMoveLine[] = [
+  {
+    id: 1,
+    move_id: 1,
+    account_id: 3,
+    account_code: '1030',
+    account_name: 'العملاء والمدينون (حسابات القبض)',
+    partner_id: 2,
+    name: 'العميل: شركة الأهرام للتجارة',
+    debit_cents: 7980000,
+    credit_cents: 0,
+    balance_cents: 7980000,
+    product_id: null,
+    product_name: null,
+    quantity_milli: null,
+    price_unit_cents: null,
+    discount_percent_milli: 0,
+    tax_rate_milli: 0,
+    sequence: 10,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 2,
+    move_id: 1,
+    account_id: 10,
+    account_code: '4010',
+    account_name: 'إيرادات المبيعات والخدمات',
+    partner_id: 2,
+    name: 'لابتوب ديل للأعمال Dell Latitude 5530',
+    debit_cents: 0,
+    credit_cents: 7000000,
+    balance_cents: -7000000,
+    product_id: 1,
+    product_name: 'لابتوب ديل للأعمال Dell Latitude 5530',
+    quantity_milli: 2000,
+    price_unit_cents: 3500000,
+    discount_percent_milli: 0,
+    tax_rate_milli: 14000,
+    sequence: 20,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 3,
+    move_id: 1,
+    account_id: 6,
+    account_code: '2020',
+    account_name: 'ضريبة القيمة المضافة المحصلة (مبيعات 14%)',
+    partner_id: 2,
+    name: 'ضريبة القيمة المضافة 14% (Egyptian VAT)',
+    debit_cents: 0,
+    credit_cents: 980000,
+    balance_cents: -980000,
+    product_id: null,
+    product_name: null,
+    quantity_milli: null,
+    price_unit_cents: null,
+    discount_percent_milli: 0,
+    tax_rate_milli: 0,
+    sequence: 30,
+    created_at: new Date().toISOString(),
+  },
+];
+
+let mockPayments: AccountPayment[] = [];
 
 let mockActivities: ActivityLog[] = [
   {
@@ -1221,6 +1346,368 @@ async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Prom
       mockPurchaseOrderLines = mockPurchaseOrderLines.filter((l) => l.order_id !== oid);
       return undefined as unknown as T;
     }
+
+    // Phase 5: Accounting, Invoices & Payments Mocks
+    case 'cmd_list_accounts':
+    case 'list_accounts': {
+      return [...mockAccounts] as unknown as T;
+    }
+    case 'cmd_create_account':
+    case 'create_account': {
+      const input = args?.input as CreateAccountInput;
+      const newAcc: Account = {
+        id: mockAccounts.length + 1,
+        company_id: input.company_id,
+        code: input.code,
+        name: input.name,
+        type: input.type,
+        is_reconciled: input.is_reconciled || 0,
+        is_active: 1,
+        created_at: new Date().toISOString(),
+      };
+      mockAccounts.push(newAcc);
+      return newAcc as unknown as T;
+    }
+    case 'cmd_list_journals':
+    case 'list_journals': {
+      return [...mockJournals] as unknown as T;
+    }
+    case 'cmd_list_moves':
+    case 'list_moves': {
+      const mt = args?.move_type as string | undefined;
+      const sf = args?.state_filter as string | undefined;
+      const pid = args?.partner_id as number | undefined;
+      let res = [...mockMoves];
+      if (mt && mt !== 'all') res = res.filter((m) => m.move_type === mt);
+      if (sf && sf !== 'all') res = res.filter((m) => m.state === sf);
+      if (pid) res = res.filter((m) => m.partner_id === pid);
+      return res as unknown as T;
+    }
+    case 'cmd_get_move':
+    case 'get_move': {
+      const mid = args?.move_id as number;
+      const move = mockMoves.find((m) => m.id === mid);
+      if (!move) return null as unknown as T;
+      const lines = mockMoveLines.filter((l) => l.move_id === mid);
+      return { move, lines } as unknown as T;
+    }
+    case 'cmd_create_invoice':
+    case 'create_invoice': {
+      const input = args?.input as CreateInvoiceInput;
+      const newId = mockMoves.length + 1;
+      const isOut = input.move_type === 'out_invoice';
+      const partner = mockPartners.find((p) => p.id === input.partner_id);
+
+      let untaxed = 0;
+      let tax = 0;
+
+      const lines: AccountMoveLine[] = [];
+      const arApAcc = isOut ? mockAccounts.find((a) => a.code === '1030') : mockAccounts.find((a) => a.code === '2010');
+      const vatAcc = isOut ? mockAccounts.find((a) => a.code === '2020') : mockAccounts.find((a) => a.code === '2025');
+
+      input.lines.forEach((l, idx) => {
+        const prod = mockProducts.find((p) => p.id === l.product_id);
+        const base = (l.quantity_milli * l.price_unit_cents) / 1000;
+        const disc = (base * (l.discount_percent_milli || 0)) / 100000;
+        const sub = base - disc;
+        const tVal = (sub * (l.tax_rate_milli || 14000)) / 100000;
+
+        untaxed += sub;
+        tax += tVal;
+
+        const revExpAcc = isOut ? mockAccounts.find((a) => a.code === '4010') : mockAccounts.find((a) => a.code === '5010');
+
+        lines.push({
+          id: mockMoveLines.length + idx + 2,
+          move_id: newId,
+          account_id: revExpAcc?.id || 10,
+          account_code: revExpAcc?.code || '4010',
+          account_name: revExpAcc?.name || 'إيرادات المبيعات',
+          partner_id: input.partner_id,
+          name: l.name || prod?.name || '',
+          debit_cents: isOut ? 0 : sub,
+          credit_cents: isOut ? sub : 0,
+          balance_cents: isOut ? -sub : sub,
+          product_id: l.product_id || null,
+          product_name: prod?.name || null,
+          quantity_milli: l.quantity_milli,
+          price_unit_cents: l.price_unit_cents,
+          discount_percent_milli: l.discount_percent_milli || 0,
+          tax_rate_milli: l.tax_rate_milli || 14000,
+          sequence: (idx + 2) * 10,
+          created_at: new Date().toISOString(),
+        });
+      });
+
+      const total = untaxed + tax;
+
+      // Header AR/AP line
+      lines.unshift({
+        id: mockMoveLines.length + 1,
+        move_id: newId,
+        account_id: arApAcc?.id || 3,
+        account_code: arApAcc?.code || '1030',
+        account_name: arApAcc?.name || 'العملاء والمدينون',
+        partner_id: input.partner_id,
+        name: `${isOut ? 'العميل' : 'المورد'}: ${partner?.name || ''}`,
+        debit_cents: isOut ? total : 0,
+        credit_cents: isOut ? 0 : total,
+        balance_cents: isOut ? total : -total,
+        product_id: null,
+        product_name: null,
+        quantity_milli: null,
+        price_unit_cents: null,
+        discount_percent_milli: 0,
+        tax_rate_milli: 0,
+        sequence: 10,
+        created_at: new Date().toISOString(),
+      });
+
+      // Tax line
+      if (tax > 0) {
+        lines.push({
+          id: mockMoveLines.length + input.lines.length + 2,
+          move_id: newId,
+          account_id: vatAcc?.id || 6,
+          account_code: vatAcc?.code || '2020',
+          account_name: vatAcc?.name || 'ضريبة القيمة المضافة 14%',
+          partner_id: input.partner_id,
+          name: 'ضريبة القيمة المضافة 14% (Egyptian VAT)',
+          debit_cents: isOut ? 0 : tax,
+          credit_cents: isOut ? tax : 0,
+          balance_cents: isOut ? -tax : tax,
+          product_id: null,
+          product_name: null,
+          quantity_milli: null,
+          price_unit_cents: null,
+          discount_percent_milli: 0,
+          tax_rate_milli: 0,
+          sequence: (input.lines.length + 2) * 10,
+          created_at: new Date().toISOString(),
+        });
+      }
+
+      const prefix = isOut ? 'INV' : 'BILL';
+      const newMove: AccountMove = {
+        id: newId,
+        company_id: input.company_id,
+        name: `${prefix}/2026/${String(newId).padStart(5, '0')}`,
+        date: input.date || new Date().toISOString().split('T')[0],
+        journal_id: isOut ? 1 : 2,
+        journal_name: isOut ? 'دفتر فواتير المبيعات' : 'دفتر فواتير المشتريات',
+        partner_id: input.partner_id,
+        partner_name: partner?.name || null,
+        move_type: input.move_type,
+        state: 'draft',
+        amount_untaxed_cents: untaxed,
+        amount_tax_cents: tax,
+        amount_total_cents: total,
+        currency: input.currency || 'EGP',
+        invoice_date_due: input.invoice_date_due || null,
+        payment_state: 'not_paid',
+        origin: input.origin || null,
+        note: input.note || null,
+        reversed_entry_id: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      mockMoves.unshift(newMove);
+      mockMoveLines.push(...lines);
+
+      return { move: newMove, lines } as unknown as T;
+    }
+    case 'cmd_create_journal_entry':
+    case 'create_journal_entry': {
+      const input = args?.input as CreateJournalEntryInput;
+      const newId = mockMoves.length + 1;
+      const journal = mockJournals.find((j) => j.id === input.journal_id);
+
+      let totDebit = 0;
+      let totCredit = 0;
+
+      const lines: AccountMoveLine[] = input.lines.map((l, idx) => {
+        totDebit += l.debit_cents;
+        totCredit += l.credit_cents;
+        const acc = mockAccounts.find((a) => a.id === l.account_id);
+
+        return {
+          id: mockMoveLines.length + idx + 1,
+          move_id: newId,
+          account_id: l.account_id,
+          account_code: acc?.code || '',
+          account_name: acc?.name || '',
+          partner_id: l.partner_id || null,
+          name: l.name,
+          debit_cents: l.debit_cents,
+          credit_cents: l.credit_cents,
+          balance_cents: l.debit_cents - l.credit_cents,
+          product_id: null,
+          product_name: null,
+          quantity_milli: null,
+          price_unit_cents: null,
+          discount_percent_milli: 0,
+          tax_rate_milli: 0,
+          sequence: (idx + 1) * 10,
+          created_at: new Date().toISOString(),
+        };
+      });
+
+      const total = Math.max(totDebit, totCredit);
+
+      const newMove: AccountMove = {
+        id: newId,
+        company_id: input.company_id,
+        name: `MISC/2026/${String(newId).padStart(5, '0')}`,
+        date: input.date || new Date().toISOString().split('T')[0],
+        journal_id: input.journal_id,
+        journal_name: journal?.name || 'دفتر العمليات المتنوعة',
+        partner_id: null,
+        partner_name: null,
+        move_type: 'entry',
+        state: 'draft',
+        amount_untaxed_cents: total,
+        amount_tax_cents: 0,
+        amount_total_cents: total,
+        currency: 'EGP',
+        invoice_date_due: null,
+        payment_state: 'not_paid',
+        origin: input.origin || null,
+        note: input.note || null,
+        reversed_entry_id: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      mockMoves.unshift(newMove);
+      mockMoveLines.push(...lines);
+
+      return { move: newMove, lines } as unknown as T;
+    }
+    case 'cmd_post_move':
+    case 'post_move': {
+      const mid = args?.move_id as number;
+      const move = mockMoves.find((m) => m.id === mid);
+      if (!move) throw new Error('Move not found');
+
+      const lines = mockMoveLines.filter((l) => l.move_id === mid);
+      const totalDebit = lines.reduce((s, l) => s + l.debit_cents, 0);
+      const totalCredit = lines.reduce((s, l) => s + l.credit_cents, 0);
+
+      if (totalDebit !== totalCredit) {
+        throw new Error(`Double-entry invariant violated: Total Debits (${totalDebit}) != Total Credits (${totalCredit})`);
+      }
+
+      move.state = 'posted';
+      return { move, lines } as unknown as T;
+    }
+    case 'cmd_cancel_move':
+    case 'cancel_move': {
+      const mid = args?.move_id as number;
+      const move = mockMoves.find((m) => m.id === mid);
+      if (!move) throw new Error('Move not found');
+      move.state = 'cancelled';
+      const lines = mockMoveLines.filter((l) => l.move_id === mid);
+      return { move, lines } as unknown as T;
+    }
+    case 'cmd_reverse_move':
+    case 'reverse_move': {
+      const mid = args?.move_id as number;
+      const original = mockMoves.find((m) => m.id === mid);
+      if (!original) throw new Error('Move not found');
+
+      const origLines = mockMoveLines.filter((l) => l.move_id === mid);
+      const newId = mockMoves.length + 1;
+
+      const revLines: AccountMoveLine[] = origLines.map((l, idx) => ({
+        ...l,
+        id: mockMoveLines.length + idx + 1,
+        move_id: newId,
+        name: `Reversal: ${l.name}`,
+        debit_cents: l.credit_cents,
+        credit_cents: l.debit_cents,
+        balance_cents: l.credit_cents - l.debit_cents,
+      }));
+
+      const revMove: AccountMove = {
+        ...original,
+        id: newId,
+        name: `REV/2026/${original.name}`,
+        state: 'posted',
+        payment_state: 'reversed',
+        origin: `Reversal of ${original.name}`,
+        reversed_entry_id: original.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      original.payment_state = 'reversed';
+      mockMoves.unshift(revMove);
+      mockMoveLines.push(...revLines);
+
+      return { move: revMove, lines: revLines } as unknown as T;
+    }
+    case 'cmd_list_payments':
+    case 'list_payments': {
+      const pid = args?.partner_id as number | undefined;
+      let res = [...mockPayments];
+      if (pid) res = res.filter((p) => p.partner_id === pid);
+      return res as unknown as T;
+    }
+    case 'cmd_create_and_post_payment':
+    case 'create_and_post_payment': {
+      const input = args?.input as CreatePaymentInput;
+      const newId = mockPayments.length + 1;
+      const partner = mockPartners.find((p) => p.id === input.partner_id);
+      const journal = mockJournals.find((j) => j.id === input.journal_id);
+
+      const newPayment: AccountPayment = {
+        id: newId,
+        company_id: input.company_id,
+        name: `PAY/2026/${String(newId).padStart(5, '0')}`,
+        partner_id: input.partner_id,
+        partner_name: partner?.name || null,
+        payment_type: input.payment_type,
+        amount_cents: input.amount_cents,
+        date: input.date || new Date().toISOString().split('T')[0],
+        journal_id: input.journal_id,
+        journal_name: journal?.name || null,
+        payment_method: (input.payment_method as any) || 'cash',
+        state: 'posted',
+        move_id: 999,
+        invoice_id: input.invoice_id || null,
+        note: input.note || null,
+        created_at: new Date().toISOString(),
+      };
+
+      mockPayments.unshift(newPayment);
+
+      if (input.invoice_id) {
+        const inv = mockMoves.find((m) => m.id === input.invoice_id);
+        if (inv) inv.payment_state = 'paid';
+      }
+
+      return newPayment as unknown as T;
+    }
+    case 'cmd_get_trial_balance':
+    case 'get_trial_balance': {
+      const tb: TrialBalanceRow[] = mockAccounts.map((acc) => {
+        const postedMoves = new Set(mockMoves.filter((m) => m.state === 'posted').map((m) => m.id));
+        const lines = mockMoveLines.filter((l) => l.account_id === acc.id && postedMoves.has(l.move_id));
+        const debitSum = lines.reduce((s, l) => s + l.debit_cents, 0);
+        const creditSum = lines.reduce((s, l) => s + l.credit_cents, 0);
+        return {
+          account_id: acc.id,
+          account_code: acc.code,
+          account_name: acc.name,
+          account_type: acc.type,
+          debit_sum_cents: debitSum,
+          credit_sum_cents: creditSum,
+          net_balance_cents: debitSum - creditSum,
+        };
+      });
+      return tb as unknown as T;
+    }
     default:
       throw new Error(`Command ${cmd} not implemented in mock`);
   }
@@ -1303,4 +1790,20 @@ export const api = {
   confirmPurchaseOrder: (order_id: number) => invokeTauri<PurchaseOrderDetail>('cmd_confirm_purchase_order', { order_id }),
   cancelPurchaseOrder: (order_id: number) => invokeTauri<PurchaseOrderDetail>('cmd_cancel_purchase_order', { order_id }),
   deletePurchaseOrder: (order_id: number) => invokeTauri<void>('cmd_delete_purchase_order', { order_id }),
+
+  // Phase 5: Accounting, Invoices & Payments
+  listAccounts: (company_id: number) => invokeTauri<Account[]>('cmd_list_accounts', { company_id }),
+  createAccount: (input: CreateAccountInput) => invokeTauri<Account>('cmd_create_account', { input }),
+  listJournals: (company_id: number) => invokeTauri<AccountJournal[]>('cmd_list_journals', { company_id }),
+  listMoves: (company_id: number, move_type?: string, state_filter?: string, partner_id?: number) =>
+    invokeTauri<AccountMove[]>('cmd_list_moves', { company_id, move_type, state_filter, partner_id }),
+  getMove: (move_id: number) => invokeTauri<AccountMoveDetail | null>('cmd_get_move', { move_id }),
+  createInvoice: (input: CreateInvoiceInput) => invokeTauri<AccountMoveDetail>('cmd_create_invoice', { input }),
+  createJournalEntry: (input: CreateJournalEntryInput) => invokeTauri<AccountMoveDetail>('cmd_create_journal_entry', { input }),
+  postMove: (move_id: number) => invokeTauri<AccountMoveDetail>('cmd_post_move', { move_id }),
+  cancelMove: (move_id: number) => invokeTauri<AccountMoveDetail>('cmd_cancel_move', { move_id }),
+  reverseMove: (move_id: number) => invokeTauri<AccountMoveDetail>('cmd_reverse_move', { move_id }),
+  listPayments: (company_id: number, partner_id?: number) => invokeTauri<AccountPayment[]>('cmd_list_payments', { company_id, partner_id }),
+  createAndPostPayment: (input: CreatePaymentInput) => invokeTauri<AccountPayment>('cmd_create_and_post_payment', { input }),
+  getTrialBalance: (company_id: number) => invokeTauri<TrialBalanceRow[]>('cmd_get_trial_balance', { company_id }),
 };

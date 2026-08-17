@@ -1,5 +1,5 @@
 use crate::{
-    activity, auth, companies, db, inventory, modules, partners, products, purchases, rbac, sales, settings,
+    accounting, activity, auth, companies, db, inventory, modules, partners, products, purchases, rbac, sales, settings,
 };
 use sqlx::SqlitePool;
 
@@ -872,4 +872,205 @@ async fn test_purchase_order_cancellation_workflow() {
     // 3. Verify linked incoming picking is cancelled
     let picking = inventory::get_picking_by_id(&pool, picking_id).await.unwrap().unwrap();
     assert_eq!(picking.state, "cancelled");
+}
+
+#[tokio::test]
+async fn test_chart_of_accounts_and_double_entry_balance_invariant() {
+    let pool = setup_test_db().await;
+
+    // 1. Verify COA seeded
+    let accounts = accounting::list_accounts(&pool, 1).await.unwrap();
+    assert!(accounts.len() >= 12);
+
+    // 2. Create an unbalanced entry (Debit: 100,000 cents, Credit: 80,000 cents)
+    let unbalanced = accounting::create_journal_entry(
+        &pool,
+        accounting::CreateJournalEntryInput {
+            company_id: 1,
+            journal_id: 5, // MISC
+            date: None,
+            origin: Some("TEST/UNBALANCED".to_string()),
+            note: Some("Unbalanced test entry".to_string()),
+            lines: vec![
+                accounting::CreateJournalEntryLineInput {
+                    account_id: 1, // Cash
+                    partner_id: None,
+                    name: "Unbalanced Debit".to_string(),
+                    debit_cents: 100000,
+                    credit_cents: 0,
+                },
+                accounting::CreateJournalEntryLineInput {
+                    account_id: 8, // Capital
+                    partner_id: None,
+                    name: "Unbalanced Credit".to_string(),
+                    debit_cents: 0,
+                    credit_cents: 80000,
+                },
+            ],
+        },
+    )
+    .await
+    .unwrap();
+
+    // 3. Posting unbalanced entry MUST fail with invariant violation error
+    let post_result = accounting::post_move(&pool, unbalanced.r#move.id).await;
+    assert!(post_result.is_err());
+    let err_msg = post_result.unwrap_err().to_string();
+    assert!(err_msg.contains("Double-entry invariant violated"));
+
+    // 4. Create and post a balanced entry (Debit Cash: 100,000 EGP, Credit Capital: 100,000 EGP)
+    let balanced = accounting::create_journal_entry(
+        &pool,
+        accounting::CreateJournalEntryInput {
+            company_id: 1,
+            journal_id: 5,
+            date: None,
+            origin: Some("CAPITAL/001".to_string()),
+            note: Some("إيداع رأس مال نقدي".to_string()),
+            lines: vec![
+                accounting::CreateJournalEntryLineInput {
+                    account_id: 1,
+                    partner_id: None,
+                    name: "إيداع نقدي بالخزينة".to_string(),
+                    debit_cents: 10000000,
+                    credit_cents: 0,
+                },
+                accounting::CreateJournalEntryLineInput {
+                    account_id: 8,
+                    partner_id: None,
+                    name: "حساب رأس المال".to_string(),
+                    debit_cents: 0,
+                    credit_cents: 10000000,
+                },
+            ],
+        },
+    )
+    .await
+    .unwrap();
+
+    let posted = accounting::post_move(&pool, balanced.r#move.id).await.unwrap();
+    assert_eq!(posted.r#move.state, "posted");
+}
+
+#[tokio::test]
+async fn test_customer_invoice_creation_and_reversal() {
+    let pool = setup_test_db().await;
+
+    // 1. Create a customer invoice
+    // 1x Laptop @ 35,000 EGP (3,500,000 cents) + 14% VAT (490,000 cents) = 3,990,000 cents
+    let inv = accounting::create_invoice(
+        &pool,
+        accounting::CreateInvoiceInput {
+            company_id: 1,
+            partner_id: 2,
+            move_type: "out_invoice".to_string(),
+            date: None,
+            invoice_date_due: Some("2026-10-31".to_string()),
+            currency: Some("EGP".to_string()),
+            origin: Some("SO/2026/00001".to_string()),
+            note: Some("فاتورة مبيعات معتمدة".to_string()),
+            lines: vec![accounting::CreateInvoiceLineInput {
+                product_id: Some(1),
+                account_id: Some(10), // Sales
+                name: "Dell Latitude 5530".to_string(),
+                quantity_milli: 1000,
+                price_unit_cents: 3500000,
+                discount_percent_milli: Some(0),
+                tax_rate_milli: Some(14000),
+            }],
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(inv.r#move.amount_untaxed_cents, 3500000);
+    assert_eq!(inv.r#move.amount_tax_cents, 490000);
+    assert_eq!(inv.r#move.amount_total_cents, 3990000);
+
+    // 2. Post the invoice
+    let posted = accounting::post_move(&pool, inv.r#move.id).await.unwrap();
+    assert_eq!(posted.r#move.state, "posted");
+
+    // 3. Reverse the invoice
+    let rev = accounting::reverse_move(&pool, posted.r#move.id).await.unwrap();
+    assert_eq!(rev.r#move.state, "posted");
+    assert_eq!(rev.r#move.reversed_entry_id, Some(posted.r#move.id));
+}
+
+#[tokio::test]
+async fn test_payment_recording_and_invoice_reconciliation() {
+    let pool = setup_test_db().await;
+
+    // Seeded invoice INV/2026/00001 has id 1, total 7,980,000 cents (79,800 EGP)
+    let inv = accounting::get_move(&pool, 1).await.unwrap().unwrap();
+    assert_eq!(inv.r#move.payment_state, "not_paid");
+
+    // Record full payment receipt from Customer 2
+    let payment = accounting::create_and_post_payment(
+        &pool,
+        accounting::CreatePaymentInput {
+            company_id: 1,
+            partner_id: 2,
+            payment_type: "inbound".to_string(),
+            amount_cents: 7980000,
+            date: None,
+            journal_id: 3, // Cash
+            payment_method: Some("cash".to_string()),
+            invoice_id: Some(1),
+            note: Some("سداد نقدي كامل للفاتورة INV/2026/00001".to_string()),
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(payment.state, "posted");
+
+    // Verify invoice payment state is updated to 'paid'
+    let updated_inv = accounting::get_move(&pool, 1).await.unwrap().unwrap();
+    assert_eq!(updated_inv.r#move.payment_state, "paid");
+}
+
+#[tokio::test]
+async fn test_trial_balance_generation() {
+    let pool = setup_test_db().await;
+
+    // Record capital injection
+    let balanced = accounting::create_journal_entry(
+        &pool,
+        accounting::CreateJournalEntryInput {
+            company_id: 1,
+            journal_id: 5,
+            date: None,
+            origin: Some("INIT".to_string()),
+            note: None,
+            lines: vec![
+                accounting::CreateJournalEntryLineInput {
+                    account_id: 1,
+                    partner_id: None,
+                    name: "Cash".to_string(),
+                    debit_cents: 5000000,
+                    credit_cents: 0,
+                },
+                accounting::CreateJournalEntryLineInput {
+                    account_id: 8,
+                    partner_id: None,
+                    name: "Capital".to_string(),
+                    debit_cents: 0,
+                    credit_cents: 5000000,
+                },
+            ],
+        },
+    )
+    .await
+    .unwrap();
+    accounting::post_move(&pool, balanced.r#move.id).await.unwrap();
+
+    let tb = accounting::get_trial_balance(&pool, 1).await.unwrap();
+    assert!(!tb.is_empty());
+
+    let total_debits: i64 = tb.iter().map(|r| r.debit_sum_cents).sum();
+    let total_credits: i64 = tb.iter().map(|r| r.credit_sum_cents).sum();
+
+    // Sum of all debits must equal sum of all credits in trial balance
+    assert_eq!(total_debits, total_credits);
 }

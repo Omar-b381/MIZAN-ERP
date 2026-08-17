@@ -19,6 +19,9 @@ import { InventoryAdjustmentsView } from './components/inventory/InventoryAdjust
 import { LocationsView } from './components/inventory/LocationsView';
 import { SalesOrdersView } from './components/sales/SalesOrdersView';
 import { PurchasesOrdersView } from './components/purchases/PurchasesOrdersView';
+import { InvoicesView } from './components/accounting/InvoicesView';
+import { JournalEntriesView } from './components/accounting/JournalEntriesView';
+import { PaymentsView } from './components/accounting/PaymentsView';
 
 export function App() {
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -78,6 +81,13 @@ export function App() {
         return <SalesOrdersView />;
       case 'purchases':
         return <PurchasesOrdersView />;
+      case 'invoices':
+        return <InvoicesView />;
+      case 'journal_entries':
+      case 'accounting':
+        return <JournalEntriesView />;
+      case 'payments':
+        return <PaymentsView />;
       default:
         return <DashboardOverview modules={modules} />;
     }

@@ -507,3 +507,173 @@ export interface UpdatePurchaseOrderInput {
   note?: string | null;
   lines: CreatePurchaseOrderLineInput[];
 }
+
+// ----------------------------------------------------
+// Phase 5: Accounting, Invoices & Payments Types
+// ----------------------------------------------------
+export type AccountType = 'asset' | 'liability' | 'equity' | 'income' | 'expense';
+export type JournalType = 'sale' | 'purchase' | 'bank' | 'cash' | 'general';
+export type MoveType = 'entry' | 'out_invoice' | 'in_invoice' | 'out_refund' | 'in_refund';
+export type MoveState = 'draft' | 'posted' | 'cancelled';
+export type PaymentState = 'not_paid' | 'in_payment' | 'paid' | 'partial' | 'reversed';
+export type PaymentType = 'inbound' | 'outbound';
+export type PaymentMethod = 'cash' | 'bank_transfer' | 'cheque';
+
+export interface Account {
+  id: number;
+  company_id: number;
+  code: string;
+  name: string;
+  type: AccountType;
+  is_reconciled: number;
+  is_active: number;
+  created_at: string;
+}
+
+export interface AccountJournal {
+  id: number;
+  company_id: number;
+  name: string;
+  code: string;
+  type: JournalType;
+  default_account_id?: number | null;
+  created_at: string;
+}
+
+export interface AccountMove {
+  id: number;
+  company_id: number;
+  name: string;
+  date: string;
+  journal_id: number;
+  journal_name?: string | null;
+  partner_id?: number | null;
+  partner_name?: string | null;
+  move_type: MoveType;
+  state: MoveState;
+  amount_untaxed_cents: number;
+  amount_tax_cents: number;
+  amount_total_cents: number;
+  currency: string;
+  invoice_date_due?: string | null;
+  payment_state: PaymentState;
+  origin?: string | null;
+  note?: string | null;
+  reversed_entry_id?: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AccountMoveLine {
+  id: number;
+  move_id: number;
+  account_id: number;
+  account_code?: string | null;
+  account_name?: string | null;
+  partner_id?: number | null;
+  name: string;
+  debit_cents: number;
+  credit_cents: number;
+  balance_cents: number;
+  product_id?: number | null;
+  product_name?: string | null;
+  quantity_milli?: number | null;
+  price_unit_cents?: number | null;
+  discount_percent_milli?: number | null;
+  tax_rate_milli?: number | null;
+  sequence: number;
+  created_at: string;
+}
+
+export interface AccountMoveDetail {
+  move: AccountMove;
+  lines: AccountMoveLine[];
+}
+
+export interface AccountPayment {
+  id: number;
+  company_id: number;
+  name: string;
+  partner_id: number;
+  partner_name?: string | null;
+  payment_type: PaymentType;
+  amount_cents: number;
+  date: string;
+  journal_id: number;
+  journal_name?: string | null;
+  payment_method: PaymentMethod;
+  state: string;
+  move_id?: number | null;
+  invoice_id?: number | null;
+  note?: string | null;
+  created_at: string;
+}
+
+export interface TrialBalanceRow {
+  account_id: number;
+  account_code: string;
+  account_name: string;
+  account_type: string;
+  debit_sum_cents: number;
+  credit_sum_cents: number;
+  net_balance_cents: number;
+}
+
+export interface CreateAccountInput {
+  company_id: number;
+  code: string;
+  name: string;
+  type: AccountType;
+  is_reconciled?: number;
+}
+
+export interface CreateInvoiceLineInput {
+  product_id?: number | null;
+  account_id?: number | null;
+  name: string;
+  quantity_milli: number;
+  price_unit_cents: number;
+  discount_percent_milli?: number;
+  tax_rate_milli?: number;
+}
+
+export interface CreateInvoiceInput {
+  company_id: number;
+  partner_id: number;
+  move_type: MoveType;
+  date?: string | null;
+  invoice_date_due?: string | null;
+  currency?: string;
+  origin?: string | null;
+  note?: string | null;
+  lines: CreateInvoiceLineInput[];
+}
+
+export interface CreateJournalEntryLineInput {
+  account_id: number;
+  partner_id?: number | null;
+  name: string;
+  debit_cents: number;
+  credit_cents: number;
+}
+
+export interface CreateJournalEntryInput {
+  company_id: number;
+  journal_id: number;
+  date?: string | null;
+  origin?: string | null;
+  note?: string | null;
+  lines: CreateJournalEntryLineInput[];
+}
+
+export interface CreatePaymentInput {
+  company_id: number;
+  partner_id: number;
+  payment_type: PaymentType;
+  amount_cents: number;
+  date?: string | null;
+  journal_id: number;
+  payment_method?: string;
+  invoice_id?: number | null;
+  note?: string | null;
+}
