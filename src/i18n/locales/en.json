@@ -2,51 +2,137 @@
   "app": {
     "title": "Mizan ERP",
     "subtitle": "Integrated Business Management Platform for SMEs",
-    "tagline": "Local-first, Modular, and Fast"
+    "tagline": "Native, Modular, and Fast"
   },
   "nav": {
     "dashboard": "Dashboard",
-    "contacts": "Contacts",
+    "contacts": "Contacts & Partners",
+    "companies": "Companies & Branches",
+    "users": "Users & Permissions",
     "sales": "Sales",
     "purchases": "Purchases",
     "inventory": "Inventory",
-    "accounting": "Accounting",
+    "accounting": "Accounting & Finance",
     "hr": "Human Resources",
     "modules": "Module Manager",
-    "settings": "Settings"
+    "settings": "Settings",
+    "activity": "Activity Log"
+  },
+  "auth": {
+    "login_title": "Sign In to Mizan ERP",
+    "login_subtitle": "Native Desktop Business Management Platform",
+    "username": "Username",
+    "password": "Password",
+    "login_button": "Sign In",
+    "logout": "Sign Out",
+    "quick_login": "Quick Login as Admin",
+    "invalid_credentials": "Invalid username or password",
+    "welcome": "Welcome,"
   },
   "modules": {
-    "title": "Modules",
-    "description": "Enable and manage system modules according to your business needs",
+    "title": "System Modules",
+    "description": "Activate and manage modular components tailored to your workflow",
     "active": "Active",
     "inactive": "Inactive",
     "activate": "Activate",
     "deactivate": "Deactivate",
-    "core": "Core Platform",
+    "core": "Core Architecture",
     "products": "Products Catalog",
-    "inventory": "Inventory & Warehouses",
+    "inventory": "Inventory & Stock",
     "sales": "Sales & Orders",
-    "purchases": "Purchases & Procurement",
-    "accounting": "General Accounting",
+    "purchases": "Purchases & Vendor Bills",
+    "accounting": "General Ledger & CoA",
     "invoices": "Invoicing & Billing",
     "payments": "Payments & Receipts",
-    "employees": "Employees",
-    "recruitment": "Recruitment",
-    "timeoff": "Time Off",
-    "timesheet": "Timesheets"
+    "employees": "Employee Management",
+    "recruitment": "Recruitment & Hiring",
+    "timeoff": "Time Off & Leaves",
+    "timesheet": "Timesheets & Attendance"
+  },
+  "contacts": {
+    "title": "Unified Contacts & Partners",
+    "subtitle": "Manage customers, vendors, and partners in a single unified directory",
+    "add_contact": "Add Contact",
+    "edit_contact": "Edit Contact",
+    "delete_confirm": "Are you sure you want to archive this contact?",
+    "tabs": {
+      "all": "All",
+      "customers": "Customers",
+      "vendors": "Vendors",
+      "contacts": "Direct Contacts"
+    },
+    "fields": {
+      "name": "Name / Business Title",
+      "sub_type": "Partner Type",
+      "is_company": "Legal Entity (Company)",
+      "individual": "Individual",
+      "company": "Company",
+      "phone": "Phone",
+      "mobile": "Mobile",
+      "email": "Email",
+      "tax_id": "Tax ID / VAT",
+      "commercial_registry": "Commercial Registry",
+      "city": "City",
+      "state": "State / Governorate",
+      "street": "Street Address",
+      "country": "Country",
+      "credit_limit": "Credit Limit",
+      "notes": "Additional Notes"
+    },
+    "empty": "No contacts match your query",
+    "chatter": "Activity Log & Chatter"
+  },
+  "companies": {
+    "title": "Companies & Branches",
+    "subtitle": "Multi-company hierarchy and branch configuration",
+    "add_company": "Add Company / Branch",
+    "headquarters": "Headquarters",
+    "branch_of": "Branch of:",
+    "currency": "Branch Currency",
+    "timezone": "Timezone"
+  },
+  "users": {
+    "title": "Users & Access Control",
+    "subtitle": "Manage team accounts and assign RBAC role permissions",
+    "add_user": "Add New User",
+    "roles": "Roles & Permissions",
+    "full_name": "Full Name",
+    "active": "Active",
+    "inactive": "Inactive",
+    "assigned_roles": "Assigned Roles"
+  },
+  "settings": {
+    "title": "Global System Settings",
+    "subtitle": "Configure organization operational and financial standards",
+    "general": "General Configuration",
+    "company_name": "Organization Name",
+    "default_currency": "Default Currency",
+    "default_timezone": "Default Timezone",
+    "default_tax_rate": "Default VAT Rate (%)",
+    "allow_negative_stock": "Allow Negative Inventory Balance",
+    "saved_success": "Settings saved successfully"
+  },
+  "activity": {
+    "title": "System Activity & Audit Trail",
+    "subtitle": "Comprehensive record of operations and changes executed across the system",
+    "empty": "No activity recorded yet",
+    "audit_trail": "Security & Operations Audit Trail"
   },
   "common": {
-    "save": "Save",
+    "save": "Save Changes",
     "cancel": "Cancel",
-    "delete": "Delete",
+    "delete": "Archive",
     "edit": "Edit",
     "add": "Add",
-    "search": "Search...",
+    "search": "Search by name, phone, or tax ID...",
     "status": "Status",
     "actions": "Actions",
     "language": "Language",
     "arabic": "العربية",
     "english": "English",
-    "direction": "ltr"
+    "direction": "ltr",
+    "loading": "Loading...",
+    "active": "Active",
+    "inactive": "Inactive"
   }
 }

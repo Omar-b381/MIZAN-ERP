@@ -6,17 +6,17 @@ import "../i18n/config";
 describe("Mizan ERP Scaffold Shell", () => {
   it("renders the application title in Arabic by default", () => {
     render(<App />);
-    expect(screen.getByText("ميزان ERP")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "ميزان ERP" })).toBeInTheDocument();
   });
 
   it("renders dashboard and module navigation elements", () => {
     render(<App />);
-    expect(screen.getByText("لوحة التحكم")).toBeInTheDocument();
-    expect(screen.getByText("إدارة الوحدات")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "لوحة التحكم" })).toBeInTheDocument();
+    expect(screen.getAllByText("إدارة الوحدات").length).toBeGreaterThan(0);
   });
 
-  it("displays SQLite WAL mode footnote", () => {
+  it("displays Phase 1 footer badge", () => {
     render(<App />);
-    expect(screen.getByText(/SQLite WAL Mode/i)).toBeInTheDocument();
+    expect(screen.getByText(/Mizan ERP v0.1 • Phase 1/i)).toBeInTheDocument();
   });
 });
