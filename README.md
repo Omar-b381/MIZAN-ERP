@@ -17,14 +17,19 @@
 
 1. [نظرة عامة على المشروع (Project Description)](#-نظرة-عامة-على-المشروع-project-description)
 2. [المشكلة التي يعالجها النظام (Problem It Solves)](#-المشكلة-التي-يعالجها-النظام-problem-it-solves)
-3. [الدافع وقصة المشروع (Motivation & Story)](#-الدافع-وقصة-المشروع-motivation--story)
-4. [البنية الهندسية والتقنيات (Tech Stack & Architecture)](#-البنية-الهندسية-والتقنيات-tech-stack--architecture)
+3. [البنية الهندسية والتقنيات (Tech Stack & Architecture)](#-البنية-الهندسية-والتقنيات-tech-stack--architecture)
+4. [مخططات دورات العمل المتكاملة (Business Cycles & Diagrams)](#-مخططات-دورات-العمل-المتكاملة-business-cycles--workflow-diagrams)
+   - [4.1 النظرة الشاملة لدورات العمل (End-to-End Enterprise Flow)](#41-النظرة-الشاملة-لدورات-العمل-المترابطة-end-to-end-enterprise-flow)
+   - [4.2 دورة المبيعات والتحصيل (Order to Cash Cycle)](#42-دورة-المبيعات-والتسليم-والتحصيل-order-to-cash---o2c)
+   - [4.3 دورة المشتريات والسداد (Procure to Pay Cycle)](#43-دورة-المشتريات-والاستلام-وسداد-الموردين-procure-to-pay---p2p)
+   - [4.4 دورة حركة المخزون المزدوج (Double-Entry Inventory Moves)](#44-دورة-حركة-المخزون-بالقيد-المزدوج-double-entry-stock-moves)
+   - [4.5 دورة القيود المحاسبية وميزان المراجعة (General Ledger)](#45-دورة-القيود-المحاسبية-المزدوجة-وميزان-المراجعة-general-ledger)
+   - [4.6 دورة الموارد البشرية (HR Management Cycle)](#46-دورة-الموارد-البشرية-وإدارة-الموظفين-human-resources-management)
 5. [المراحل والقدرات المنجزة (Features & Milestones)](#-المراحل-والقدرات-المنجزة-features--milestones)
 6. [التحديات الهندسية والحلول (Challenges & Solutions)](#-التحديات-الهندسية-والحلول-challenges--solutions)
 7. [دليل التثبيت والتشغيل (Getting Started)](#-دليل-التثبيت-والتشغيل-getting-started)
-8. [القيود وخارطة الطريق المستقبلية (Limitations & Roadmap)](#-القيود-وخارطة-الطريق-المستقبلية-limitations--roadmap)
-9. [الجمهور المستهدف (Intended Use)](#-الجمهور-المستهدف-intended-use)
-10. [الترخيص والمصادر المرجعية (Credits & License)](#-الترخيص-والمصادر-المرجعية-credits--license)
+8. [خارطة الطريق والمراحل (Roadmap & Status)](#-القيود-وخارطة-الطريق-المستقبلية-limitations--roadmap)
+9. [الترخيص والمصادر (Credits & License)](#-الترخيص-والمصادر-المرجعية-credits--license)
 
 ---
 
@@ -48,44 +53,231 @@
 
 ---
 
-## 💡 الدافع وقصة المشروع (Motivation & Story)
-
-نشأت فكرة **ميزان ERP** من قناعة راسخة بأن الشركات تستحق امتلاك بياناتها بالكامل وتشغيل أعمالها بسرعة استجابة تكاد تكون لحظية (Sub-millisecond latency). 
-
-بدلاً من بناء تطبيق ويب تقليدي يتطلب خادمًا منفصلاً ووسطاء اتصال معقدين، اخترنا استغلال قوة **Rust** في إدارة الموارد والأمان، مع مرونة **React** لتقديم تجربة مستخدم أنيقة لا تتعدى مساحتها بضع عشرات من الميغابايت ولا تستهلك موارد الجهاز، مع الالتزام الصارم بمبادئ القيد المزدوج للمخزون والمالية.
-
----
-
 ## 🛠️ البنية الهندسية والتقنيات (Tech Stack & Architecture)
 
 ```mermaid
 graph TD
-    A[Desktop UI / React 18 + TS] -->|Tauri v2 IPC Bridge| B[Native Rust Engine]
-    B --> C[Auth & RBAC Matrix]
-    B --> D[Double-Entry Stock Engine]
-    B --> E[Sales & Order Lifecycle]
-    B --> F[Procurement & Vendor Orders]
-    B --> G[Unified General Ledger]
-    C & D & E & F & G -->|Async SQLx Queries & Transactions| H[(SQLite Database - WAL Mode)]
+    UI["Desktop UI (React 18 + TypeScript + Tailwind)"] -->|Tauri v2 IPC Bridge| Engine["Native Rust Core Engine (Rust 1.85+)"]
+    Engine --> Auth["Auth & Multi-Company RBAC Matrix"]
+    Engine --> Stock["Double-Entry Stock Movement Engine"]
+    Engine --> Sales["Sales Order & Quotation Lifecycle"]
+    Engine --> Purchases["Procurement & Vendor Orders Engine"]
+    Engine --> GL["General Ledger (SUM(Debit) == SUM(Credit))"]
+    Engine --> HR["HR, Contracts & Attendance Module"]
+    Auth & Stock & Sales & Purchases & GL & HR -->|Async SQLx Transactions| DB[("SQLite Database (WAL Mode / ACID Compliant)")]
 ```
 
-### 1. طبقة النظام والخلفية (Backend Engine)
-* **Rust 1.85+**: لغة الأنظمة الأساسية التي توفر أمان الذاكرة (Memory Safety)، والتنفيذ المتزامن فائق السرعة، واستدعاءات النظام المباشرة دون الحاجة لبيئة تشغيل ثقيلة (No Garbage Collector).
-* **Tauri v2**: إطار بناء تطبيقات سطح المكتب المدمجة مع محرك WebView2 الأصلي لنظام Windows، مما يوفر استهلاك ذاكرة منخفضًا (~25MB مقارنة بـ 200MB+ في Electron).
-* **SQLite + WAL (Write-Ahead Logging)**: قاعدة بيانات علائقية محلية مع تفعيل التزامن العالي (Concurrent Reads & Serialized Writes) وموثوقية ACID الكاملة.
-* **SQLx**: معالجة الاستعلامات بطريقة غير متزامنة (Asynchronous Queries) وربط المعاملات الديناميكية بأمان تام ضد ثغرات SQL Injection.
+---
 
-### 2. واجهة المستخدم (Frontend Layer)
-* **React 18 + TypeScript**: بنية واجهة معيارية تعتمد على المكونات القابلة لإعادة الاستخدام مع تدقيق صارم للأنواع البرمجية (Strict Type Safety).
-* **TailwindCSS & Vanilla CSS**: تصميم احترافي، مرن، سريع الاستجابة، متوافق مع نظام الوضع الداكن/الفاتح، ومضبوط للمعيار الجمالي العربي.
-* **Zustand**: إدارة حالة التطبيق (State Management) بسرعة فائقة ودون إعادة تصيير غير ضرورية.
-* **i18next**: محرك الترجمة متعدد اللغات مع دعم RTL/LTR لحظي.
-* **Lucide Icons**: حزمة أيقونات عصرية وخفيفة الوزن.
+## 🔄 مخططات دورات العمل المتكاملة (Business Cycles & Workflow Diagrams)
 
-### 3. المعايير الرياضية والمالية الصارمة (Financial & Quantity Invariants)
-* **Integer Minor Units**: يتم تخزين كافة القيم المالية بصيغة أعداد صحيحة من القروش/السنتات (`price_unit_cents`, `amount_total_cents`) لمنع أخطاء المعيار IEEE-754.
-* **Milli-Unit Quantities**: يتم تخزين الكميات المخزنية بوحدات الملي (`quantity_milli` = 1/1000) لدعم الكسور حتى 3 خانات عشرية بدقة رياضية مطلقة.
-* **Egyptian Standard VAT**: حساب ضريبة القيمة المضافة القياسية بنسبة 14% (`tax_rate_milli = 14000`).
+### 4.1 النظرة الشاملة لدورات العمل المترابطة (End-to-End Enterprise Flow)
+
+يوضح المخطط التالي كيف تترابط كافة وحدات النظام (المبيعات، المشتريات، المخازن، الحسابات، والخزينة) في تدفق متجانس ومحكم رياضياً:
+
+```mermaid
+flowchart TD
+    subgraph Procurement ["دورة المشتريات (Procure to Pay)"]
+        PO["أمر شراء معتمد (Purchase Order)"]
+        REC["إذن استلام مخزني وارد (WH/IN)"]
+        BILL["فاتورة مورد (Vendor Bill)"]
+        PAY_OUT["سند صرف نقدي / بنكي (Outbound Payment)"]
+        PO -->|Trigger| REC
+        PO -->|Billing| BILL
+        BILL -->|Settlement| PAY_OUT
+    end
+
+    subgraph Inventory ["محرك المخزون بالقيد المزدوج"]
+        LOC_VEND["موقع المورد (Vendor Location)"]
+        LOC_STOCK["مستودع البضائع الداخلي (Stock)"]
+        LOC_CUST["موقع العميل (Customer Location)"]
+        REC -->|Stock Move| MoveIN["حركة واردة: من المورد -> المخزن"]
+        MoveIN --> LOC_STOCK
+        MoveOUT["حركة صادرة: من المخزن -> العميل"] --> LOC_CUST
+    end
+
+    subgraph Sales ["دورة المبيعات (Order to Cash)"]
+        SO["أمر بيع معتمد (Sales Order)"]
+        DEL["إذن صرف وتسليم مخزني (WH/OUT)"]
+        INV["فاتورة مبيعات عميل (Customer Invoice)"]
+        PAY_IN["سند قبض نقدي / بنكي (Inbound Receipt)"]
+        SO -->|Trigger| DEL
+        DEL -->|Stock Move| MoveOUT
+        SO -->|Invoicing| INV
+        INV -->|Settlement| PAY_IN
+    end
+
+    subgraph Finance ["دفتر الأستاذ العام (General Ledger)"]
+        AR["حسابات القبض والعملاء (1030)"]
+        AP["حسابات الدفع والموردين (2010)"]
+        VAT_OUT["ضريبة مخرجات 14% (2020)"]
+        VAT_IN["ضريبة مدخلات 14% (2025)"]
+        CASH_BNK["الخزينة والبنوك (1010 / 1020)"]
+        TB["ميزان المراجعة الحي (Trial Balance)"]
+        
+        INV -->|Post Move| AR & VAT_OUT
+        BILL -->|Post Move| AP & VAT_IN
+        PAY_IN -->|Reconcile| CASH_BNK & AR
+        PAY_OUT -->|Reconcile| AP & CASH_BNK
+        AR & AP & VAT_OUT & VAT_IN & CASH_BNK --> TB
+    end
+```
+
+---
+
+### 4.2 دورة المبيعات والتسليم والتحصيل (Order to Cash - O2C)
+
+مخطط الحالة لتطور عروض الأسعار إلى أوامر بيع، وتوليد أذون الصرف الآلية، وإصدار الفواتير مع ضريبة القيمة المضافة 14%:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Draft_Quotation: إنشاء مسودة عرض سعر (Draft Quotation)
+    Draft_Quotation --> Sent: إرسال عرض السعر للعميل (Sent)
+    Sent --> Sale_Order: اعتماد أمر البيع (Confirm Sale Order)
+    Draft_Quotation --> Sale_Order: تأكيد مباشر
+    
+    state Sale_Order {
+        [*] --> WH_OUT_Triggered: توليد إذن الصرف والتسليم تلقائيًا (WH/OUT/xxxxx)
+        WH_OUT_Triggered --> Stock_Reserved: حجز الأصناف وتوليد حركات Stock Moves
+        Stock_Reserved --> Delivered: اعتماد خروج البضاعة وتسليمها للعميل
+    }
+    
+    Sale_Order --> Customer_Invoice: إنشاء فاتورة مبيعات (Customer Invoice)
+    
+    state Customer_Invoice {
+        [*] --> Compute_VAT: حساب الضريبة 14% والخصومات
+        Compute_VAT --> Post_Invoice: ترحيل القيد (Debit A/R, Credit Sales, Credit VAT)
+        Post_Invoice --> Register_Payment: تسجيل سند قبض نقدية / بنك
+        Register_Payment --> Paid: مدفوعة بالكامل وتسوية الذمة (Reconciled)
+    }
+    
+    Customer_Invoice --> Reversed: عكس القيد / إشعار دائن (Reverse Move)
+    Sale_Order --> Cancelled: إلغاء الأمر وإلغاء إذن التسليم المرتبط
+    Cancelled --> [*]
+    Paid --> [*]
+    Reversed --> [*]
+```
+
+---
+
+### 4.3 دورة المشتريات والاستلام وسداد الموردين (Procure to Pay - P2P)
+
+توضح دورة المشتريات انتقال طلبات الأسعار لأوامر شراء وتوليد أذون الاستلام المخزني الوارد وسداد مستحقات المورد:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Purchasing as مسؤول المشتريات
+    participant System as نظام ميزان ERP
+    participant Warehouse as قسم المستودعات
+    actor Vendor as المورد
+    participant GL as دفتر الحسابات العامة
+
+    Purchasing->>System: إنشاء طلب عرض أسعار RFQ
+    Purchasing->>Vendor: إرسال طلب عرض الأسعار (State: Sent)
+    Vendor-->>Purchasing: الموافقة على الأسعار والكميات
+    Purchasing->>System: تأكيد أمر الشراء (Confirm Purchase Order)
+    Note over System: الانتقال لحالة 'purchase'
+    System->>Warehouse: إنشاء إذن استلام بضائع آلي (WH/IN/xxxxx)
+    Vendor->>Warehouse: توريد البضاعة للمستودع
+    Warehouse->>System: تأكيد استلام الشحنة وتحديث الرصيد الفعلي
+    Note over System: نقل البضائع من موقع المورد إلى المخزن الداخلي
+    Purchasing->>System: إنشاء وترحيل فاتورة المورد (Vendor Bill)
+    System->>GL: تسجيل القيد: Debit Expense/Purchases + Debit VAT Input, Credit A/P
+    Purchasing->>System: تسجيل سند صرف وسداد المورد (Outbound Payment)
+    System->>GL: تسجيل قيد السداد: Debit A/P, Credit Cash/Bank
+    Note over System: تسوية الفاتورة وتحديث حالتها إلى 'Paid'
+```
+
+---
+
+### 4.4 دورة حركة المخزون بالقيد المزدوج (Double-Entry Stock Moves)
+
+يوضح هذا النموذج كيف لا يتم تعديل أي رصيد مخزني بصورة مفردة، بل يتم دومًا عبر حركة بين موقعين محددين (موقع مصدر وموقع وجهة):
+
+```mermaid
+flowchart LR
+    subgraph Virtual_Sources ["مواقع افتراضية ومصادر"]
+        V_Suppliers["مواقع الموردين (Partner Locations/Vendors)"]
+        V_InvLoss["مواقع فروقات الجرد والتلف (Inventory Loss)"]
+        V_Production["مواقع خطوط الإنتاج (Production)"]
+    end
+
+    subgraph Internal_Warehouses ["المستودعات والمواقع الداخلية"]
+        WH_Stock["المستودع الرئيسي (WH/Stock)"]
+        WH_ShelfA["الرف A (WH/Stock/Shelf A)"]
+        WH_ShelfB["الرف B (WH/Stock/Shelf B)"]
+    end
+
+    subgraph Virtual_Destinations ["مواقع افتراضية ووجهات"]
+        V_Customers["مواقع العملاء (Partner Locations/Customers)"]
+        V_Scrap["موقع الخردة والهالك (Scrap)"]
+    end
+
+    V_Suppliers -->|إذن استلام WH/IN| WH_Stock
+    WH_Stock <-->|تحويل داخلي WH/INT| WH_ShelfA & WH_ShelfB
+    WH_Stock -->|إذن صرف وتسليم WH/OUT| V_Customers
+    WH_Stock <-->|جلسة جرد فعلي Physical Inventory| V_InvLoss
+    WH_Stock -->|إتلاف صنف معيب| V_Scrap
+```
+
+---
+
+### 4.5 دورة القيود المحاسبية المزدوجة وميزان المراجعة (General Ledger)
+
+مخطط يوضح المعالجة المحاسبية الصارمة؛ حيث لا يُرحل قيد إلا بتحقيق التوازن `SUM(Debit) == SUM(Credit)`:
+
+```mermaid
+flowchart TD
+    subgraph Transaction_Sources ["مصادر المعاملات والعمليات"]
+        T1["فاتورة مبيعات عميل (INV)"]
+        T2["فاتورة مشتريات مورد (BILL)"]
+        T3["سند قبض / صرف (PAY)"]
+        T4["قيد تسوية يدوي (MISC)"]
+    end
+
+    subgraph Validation ["محرك التحقق والترحيل (Strict Invariant)"]
+        Engine{"هل إجمالي المدين == إجمالي الدائن؟"}
+        Reject["رفض الترحيل وتنبيه المستخدم بخطأ التوازن"]
+        Post["اعتماد القيد وتغيير الحالة إلى Posted"]
+    end
+
+    subgraph Chart_Of_Accounts ["دليل الحسابات المصري الموحد (COA)"]
+        Assets["1000 - الأصول (خزينة، بنوك، عملاء، مخزون)"]
+        Liabilities["2000 - الخصوم (موردون، ضرائب مبيعات ومشتريات)"]
+        Equity["3000 - حقوق الملكية (رأس المال، أرباح مبقاة)"]
+        Revenue["4000 - الإيرادات (إيرادات المبيعات)"]
+        Expenses["5000 - المصروفات (تكلفة البضاعة المباعة، عمومية)"]
+    end
+
+    subgraph Reporting ["التقارير والمخرجات المالية"]
+        TB["ميزان المراجعة اللحظي (Trial Balance)"]
+        IS["قائمة الدخل والأرباح والخسائر"]
+        BS["الميزانية العمومية والمركز المالي"]
+    end
+
+    T1 & T2 & T3 & T4 --> Engine
+    Engine -->|لا| Reject
+    Engine -->|نعم| Post
+    Post --> Assets & Liabilities & Equity & Revenue & Expenses
+    Assets & Liabilities & Equity & Revenue & Expenses --> TB
+    TB --> IS & BS
+```
+
+---
+
+### 4.6 دورة الموارد البشرية وإدارة الموظفين (Human Resources Management)
+
+مخطط سير العمل لوحدة الموارد البشرية (Phase 6):
+
+```mermaid
+flowchart LR
+    Recruit["دليل الموظفين والهيكل الإداري"] --> Contract["عقود العمل والرواتب"]
+    Contract --> Track["تتبع الحضور وساعات العمل (Timesheets)"]
+    Contract --> Leave["طلبات الإجازات والعطلات (Time-Off)"]
+    Track & Leave --> PayrollCalc["احتساب الاستحقاقات والخصومات"]
+    PayrollCalc --> GL_Post["ترحيل قيود الرواتب إلى الحسابات العامة"]
+```
 
 ---
 
