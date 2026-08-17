@@ -57,6 +57,7 @@ import {
   CreateContractInput,
   CreateLeaveInput,
   RecordAttendanceInput,
+  DashboardMetrics,
 } from '../types';
 
 let mockModules: ModuleRecord[] = [
@@ -2093,6 +2094,62 @@ async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Prom
       mockAttendances.push(newAtt);
       return newAtt as unknown as T;
     }
+
+    // Phase 7: Dashboard Analytics Mock
+    case 'cmd_get_dashboard_metrics':
+    case 'get_dashboard_metrics': {
+      const company_id = (args?.company_id as number) || 1;
+      const total_sales = mockSaleOrders
+        .filter((so) => so.company_id === company_id && (so.state === 'sale' || so.state === 'done'))
+        .reduce((s, so) => s + so.amount_total_cents, 0);
+
+      const total_purchases = mockPurchaseOrders
+        .filter((po) => po.company_id === company_id && (po.state === 'purchase' || po.state === 'done'))
+        .reduce((s, po) => s + po.amount_total_cents, 0);
+
+      const inventory_val = mockStockQuantities
+        .filter((sq) => sq.company_id === company_id)
+        .reduce((s, sq) => {
+          const p = mockProducts.find((prod) => prod.id === sq.product_id);
+          return s + (sq.quantity_milli * (p?.cost_price_cents || 0)) / 1000;
+        }, 0);
+
+      const pending_deliv = mockPickings.filter(
+        (p) => p.company_id === company_id && (p.picking_type_id === 2 || p.name.startsWith('WH/OUT')) && p.state !== 'done' && p.state !== 'cancelled'
+      ).length;
+
+      const pending_rec = mockPickings.filter(
+        (p) => p.company_id === company_id && (p.picking_type_id === 1 || p.name.startsWith('WH/IN')) && p.state !== 'done' && p.state !== 'cancelled'
+      ).length;
+
+      const monthly_payroll = mockContracts
+        .filter((c) => c.company_id === company_id && c.state === 'open')
+        .reduce((s, c) => s + c.wage_cents, 0);
+
+      const pending_leaves = mockLeaves.filter((l) => l.company_id === company_id && l.state === 'confirm').length;
+
+      const metrics: DashboardMetrics = {
+        company_id,
+        total_sales_cents: total_sales || 7980000,
+        sales_orders_count: mockSaleOrders.length || 1,
+        top_customers_count: 1,
+        total_purchases_cents: total_purchases || 22800000,
+        purchase_orders_count: mockPurchaseOrders.length || 1,
+        inventory_valuation_cents: inventory_val || 9000000,
+        total_products_count: mockProducts.length || 2,
+        pending_deliveries_count: pending_deliv,
+        pending_receipts_count: pending_rec,
+        accounts_receivable_cents: 7980000,
+        accounts_payable_cents: 22800000,
+        cash_bank_balance_cents: 5000000,
+        net_vat_liability_cents: -1820000,
+        active_employees_count: mockEmployees.filter((e) => e.status === 'active').length || 3,
+        monthly_payroll_cents: monthly_payroll || 8000000,
+        pending_leaves_count: pending_leaves,
+      };
+
+      return metrics as unknown as T;
+    }
     default:
       throw new Error(`Command ${cmd} not implemented in mock`);
   }
@@ -2216,4 +2273,8 @@ export const api = {
     invokeTauri<AttendanceRecord[]>('cmd_list_attendances', { company_id, employee_id, date_filter }),
   recordAttendance: (input: RecordAttendanceInput) =>
     invokeTauri<AttendanceRecord>('cmd_record_attendance', { input }),
+
+  // Phase 7: Executive Dashboard & Analytics
+  getDashboardMetrics: (company_id: number) =>
+    invokeTauri<DashboardMetrics>('cmd_get_dashboard_metrics', { company_id }),
 };

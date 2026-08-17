@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use tauri::State;
-use crate::{accounting, activity, auth, companies, hr, inventory, modules, partners, products, purchases, rbac, sales, settings, AppState};
+use crate::{accounting, activity, auth, companies, dashboard, hr, inventory, modules, partners, products, purchases, rbac, sales, settings, AppState};
 
 // ----------------------------------------------------
 // Modules Commands
@@ -1123,6 +1123,19 @@ pub async fn cmd_record_attendance(
     input: hr::RecordAttendanceInput,
 ) -> Result<hr::AttendanceRecord, String> {
     hr::record_attendance(&state.pool, input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ----------------------------------------------------
+// Dashboard & Executive Reporting Commands (Phase 7)
+// ----------------------------------------------------
+#[tauri::command]
+pub async fn cmd_get_dashboard_metrics(
+    state: State<'_, AppState>,
+    company_id: i64,
+) -> Result<dashboard::DashboardMetrics, String> {
+    dashboard::get_dashboard_metrics(&state.pool, company_id)
         .await
         .map_err(|e| e.to_string())
 }

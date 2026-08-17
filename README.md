@@ -1,13 +1,13 @@
 # 🏛️ ميزان ERP | MIZAN ERP
 ### نظام إدارة المؤسسات المعياري لسطح المكتب (Local-First Modular Desktop ERP)
 
-[![Release](https://img.shields.io/badge/Release-v0.6--phase6-blue.svg)](https://github.com/Omar-b381/MIZAN-ERP/releases)
+[![Release](https://img.shields.io/badge/Release-v1.0.0--enterprise-blue.svg)](https://github.com/Omar-b381/MIZAN-ERP/releases)
 [![Rust](https://img.shields.io/badge/Rust-1.85%2B-orange.svg?logo=rust)](https://www.rust-lang.org/)
 [![Tauri](https://img.shields.io/badge/Tauri-v2.1-24C8D5.svg?logo=tauri)](https://tauri.app/)
 [![React](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react)](https://reactjs.org/)
 [![SQLite](https://img.shields.io/badge/SQLite-WAL%20Mode-003B57.svg?logo=sqlite)](https://www.sqlite.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-54%2F54%20Passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-58%2F58%20Passing-brightgreen.svg)]()
 
 > **"نظام محلي، معياري، فائق السرعة، ومصمم خصيصًا لتلبية متطلبات الشركات والمؤسسات في مصر والشرق الأوسط بدقة رياضية ومحاسبية مطلقة."**
 
@@ -403,7 +403,7 @@ flowchart LR
 | **Phase 4** | المشتريات (Purchases & POs) | ✅ مكتمل | طلبات الشراء، أوامر التوريد، والربط مع الاستلام المخزني |
 | **Phase 5** | الحسابات والفوترة والمدفوعات | ✅ مكتمل | دليل الحسابات، القيود المزدوجة، الفواتير، وميزان المراجعة |
 | **Phase 6** | الموارد البشرية (HR & Attendance) | ✅ مكتمل | دليل الموظفين، عقود العمل، الإجازات، وسجلات الحضور |
-| **Phase 7** | لوحة المؤشرات التنفيذية وحزم التثبيت | 🔄 قادم | لوحة التحكم الذكية ومثبت Windows `.msi / .exe` المستقل |
+| **Phase 7** | لوحة المؤشرات التنفيذية وحزم التثبيت | ✅ مكتمل | لوحة المؤشرات اللحظية، التحليلات المجمعة، ومثبت Windows `.msi / .exe` |
 
 ---
 

@@ -15,8 +15,8 @@ describe("Mizan ERP Scaffold Shell", () => {
     expect(screen.getAllByText("إدارة الوحدات").length).toBeGreaterThan(0);
   });
 
-  it("displays Phase 6 footer badge", () => {
+  it("displays v1.0 Enterprise Edition footer badge", () => {
     render(<App />);
-    expect(screen.getByText(/Mizan ERP v0.6 • Phase 6/i)).toBeInTheDocument();
+    expect(screen.getByText(/Mizan ERP v1.0 • Enterprise Edition/i)).toBeInTheDocument();
   });
 });

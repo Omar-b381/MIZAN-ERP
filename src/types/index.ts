@@ -840,3 +840,27 @@ export interface RecordAttendanceInput {
   check_out?: string | null;
   notes?: string | null;
 }
+
+// ----------------------------------------------------
+// Phase 7: Dashboard & Executive Reporting Types
+// ----------------------------------------------------
+export interface DashboardMetrics {
+  company_id: number;
+  total_sales_cents: number;
+  sales_orders_count: number;
+  top_customers_count: number;
+  total_purchases_cents: number;
+  purchase_orders_count: number;
+  inventory_valuation_cents: number;
+  total_products_count: number;
+  pending_deliveries_count: number;
+  pending_receipts_count: number;
+  accounts_receivable_cents: number;
+  accounts_payable_cents: number;
+  cash_bank_balance_cents: number;
+  net_vat_liability_cents: number;
+  active_employees_count: number;
+  monthly_payroll_cents: number;
+  pending_leaves_count: number;
+}
+

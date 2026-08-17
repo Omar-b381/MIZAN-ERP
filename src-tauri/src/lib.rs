@@ -3,6 +3,7 @@ pub mod activity;
 pub mod auth;
 pub mod commands;
 pub mod companies;
+pub mod dashboard;
 pub mod db;
 pub mod hr;
 pub mod inventory;
@@ -136,7 +137,9 @@ pub fn run() {
             commands::cmd_validate_leave,
             commands::cmd_refuse_leave,
             commands::cmd_list_attendances,
-            commands::cmd_record_attendance
+            commands::cmd_record_attendance,
+            // Phase 7: Dashboard & Analytics
+            commands::cmd_get_dashboard_metrics
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

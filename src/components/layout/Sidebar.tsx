@@ -439,7 +439,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ modules }) => {
       {/* Footer Info */}
       <div className="p-4 border-t border-border/40 text-center">
         <p className="text-[11px] text-muted-foreground font-medium">
-          Mizan ERP v0.6 • Phase 6
+          Mizan ERP v1.0 • Enterprise Edition
         </p>
       </div>
     </aside>

@@ -1,5 +1,5 @@
 use crate::{
-    accounting, activity, auth, companies, db, hr, inventory, modules, partners, products, purchases, rbac, sales, settings,
+    accounting, activity, auth, companies, dashboard, db, hr, inventory, modules, partners, products, purchases, rbac, sales, settings,
 };
 use sqlx::SqlitePool;
 
@@ -1233,4 +1233,25 @@ async fn test_hr_attendance_recording_and_worked_hours_calculation() {
     assert_eq!(att.status, "present");
     assert_eq!(att.worked_hours_milli, 8500);
 }
+
+#[tokio::test]
+async fn test_dashboard_metrics_aggregation() {
+    let pool = setup_test_db().await;
+
+    // Fetch consolidated dashboard metrics for company 1
+    let metrics = dashboard::get_dashboard_metrics(&pool, 1).await.unwrap();
+
+    // Verify company ID
+    assert_eq!(metrics.company_id, 1);
+
+    // Verify product count >= 2 (seeded Laptop and Office Chair)
+    assert!(metrics.total_products_count >= 2);
+
+    // Verify active employees count >= 3
+    assert!(metrics.active_employees_count >= 3);
+
+    // Verify monthly payroll >= 35,000 + 25,000 + 20,000 = 80,000 EGP = 8,000,000 cents
+    assert!(metrics.monthly_payroll_cents >= 8000000);
+}
+
 
