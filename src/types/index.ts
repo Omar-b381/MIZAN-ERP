@@ -864,3 +864,36 @@ export interface DashboardMetrics {
   pending_leaves_count: number;
 }
 
+// ----------------------------------------------------
+// Phase 8: Hardening, Licensing & Trial Types
+// ----------------------------------------------------
+export interface TrialStatus {
+  is_activated: boolean;
+  is_trial_active: boolean;
+  is_expired: boolean;
+  trial_days_left: number;
+  machine_id: string;
+  licensee_name?: string | null;
+  tier: string;
+  allowed_modules: string[];
+  message: string;
+}
+
+export interface BackupInfo {
+  filename: string;
+  file_path: string;
+  size_bytes: number;
+  created_at: string;
+}
+
+export interface RestoreResult {
+  success: boolean;
+  message: string;
+  safety_snapshot_path: string;
+}
+
+export interface DiagnosticExportResult {
+  export_path: string;
+  total_entries: number;
+}
+

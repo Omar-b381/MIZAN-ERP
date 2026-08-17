@@ -42,3 +42,9 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Internal Admin Tools & License Issuer (Local only - never pushed)
+tools/
+*.mizan
+
+

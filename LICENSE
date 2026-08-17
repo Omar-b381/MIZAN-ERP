@@ -1,0 +1,32 @@
+COMMERCIAL SOFTWARE LICENSE AGREEMENT
+MIZAN ERP (v1.1.0)
+
+Copyright (c) 2026 Omar. All Rights Reserved.
+
+IMPORTANT: PLEASE READ THIS LICENSE AGREEMENT CAREFULLY BEFORE USING THIS SOFTWARE.
+
+1. GRANT OF LICENSE:
+   This software and accompanying documentation are licensed, not sold, to the Licensee
+   under a commercial, perpetual, non-exclusive, and non-transferable license. The license
+   is bound to designated customer hardware and requires cryptographic activation.
+
+2. RESTRICTIONS:
+   Except as expressly authorized by the Licensor (Omar), the Licensee may NOT:
+   a) Distribute, sublicense, lease, rent, loan, or host the software as a service (SaaS) for third parties.
+   b) Reverse engineer, decompile, disassemble, or derive the source code of any proprietary component or license issuer.
+   c) Modify, bypass, tamper with, or circumvent the offline cryptographic licensing engine or trial protections.
+   d) Share, publish, or disclose license keys or generated `.mizan` signed files to any unauthorized party.
+
+3. EVALUATION TRIAL:
+   The software may include an initial 7-day fully functional evaluation trial. Upon expiration
+   of the evaluation period, continued usage of commercial modules requires obtaining an authorized
+   license key and signature from the Licensor.
+
+4. OWNERSHIP & INTELLECTUAL PROPERTY:
+   All title, copyright, trademarks, and intellectual property rights in and to MIZAN ERP
+   remain the sole and exclusive property of Omar.
+
+5. WARRANTY DISCLAIMER & LIMITATION OF LIABILITY:
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.
+   IN NO EVENT SHALL THE AUTHOR OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES,
+   OR OTHER LIABILITY ARISING FROM THE USE OR INABILITY TO USE THIS SOFTWARE.

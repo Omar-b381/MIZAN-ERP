@@ -1,5 +1,5 @@
 use crate::{
-    accounting, activity, auth, backup, companies, dashboard, db, diagnostics, hr, inventory, modules, partners, products, purchases, rbac, sales, settings,
+    accounting, activity, auth, backup, companies, dashboard, db, diagnostics, hr, inventory, licensing, modules, partners, products, purchases, rbac, sales, settings,
 };
 use sqlx::SqlitePool;
 
@@ -1400,6 +1400,101 @@ fn test_single_instance_lockfile_guard() {
     let err_msg = lock2.unwrap_err().to_string();
     assert!(err_msg.contains("مفتوح بالفعل"));
 }
+
+// ----------------------------------------------------
+// Phase 8 Track B Licensing & Trial Integration Tests
+// ----------------------------------------------------
+#[tokio::test]
+async fn test_ed25519_offline_license_signing_and_verification() {
+    use base64::Engine;
+    use ed25519_dalek::{Signer, SigningKey};
+    use rand_core::OsRng;
+
+    let mut csprng = OsRng;
+    let signing_key = SigningKey::generate(&mut csprng);
+    let verifying_key = signing_key.verifying_key();
+    let pubkey_hex = hex::encode(verifying_key.to_bytes());
+
+    let payload = licensing::LicensePayload {
+        licensee: "شركة الشرق للتجارة".to_string(),
+        machine_id: "MIZAN-TEST-0001".to_string(),
+        tier: "business".to_string(),
+        allowed_modules: vec![
+            "core".to_string(),
+            "inventory".to_string(),
+            "sales".to_string(),
+            "purchases".to_string(),
+            "accounting".to_string(),
+        ],
+        issued_at: chrono::Utc::now().to_rfc3339(),
+        expires_at: None,
+    };
+
+    let payload_json = serde_json::to_string(&payload).unwrap();
+    let signature = signing_key.sign(payload_json.as_bytes());
+    let sig_b64 = base64::engine::general_purpose::STANDARD.encode(signature.to_bytes());
+
+    let signed_file = licensing::SignedLicenseFile {
+        payload_json,
+        signature_base64: sig_b64,
+        public_key_hex: pubkey_hex,
+    };
+    let file_content = serde_json::to_string(&signed_file).unwrap();
+
+    // 1. Verify valid license on matching machine
+    let verified = licensing::verify_license_content(&file_content, "MIZAN-TEST-0001");
+    assert!(verified.is_ok());
+    let lic = verified.unwrap();
+    assert_eq!(lic.licensee, "شركة الشرق للتجارة");
+    assert_eq!(lic.tier, "business");
+    assert_eq!(lic.allowed_modules.len(), 5);
+
+    // 2. Reject when machine ID differs
+    let mismatch = licensing::verify_license_content(&file_content, "MIZAN-DIFF-9999");
+    assert!(mismatch.is_err());
+    assert!(mismatch.unwrap_err().contains("Machine ID mismatch"));
+
+    // 3. Reject when signature is tampered
+    let mut tampered_file = signed_file;
+    tampered_file.payload_json = tampered_file.payload_json.replace("business", "enterprise");
+    let tampered_content = serde_json::to_string(&tampered_file).unwrap();
+    let tampered_result = licensing::verify_license_content(&tampered_content, "MIZAN-TEST-0001");
+    assert!(tampered_result.is_err());
+    assert!(tampered_result.unwrap_err().contains("Signature verification failed"));
+}
+
+#[tokio::test]
+async fn test_evaluation_trial_lifecycle() {
+    let pool = setup_test_db().await;
+
+    // 1. First run: should auto-initialize 7-day trial with all modules unlocked
+    let status = licensing::get_license_and_trial_status(&pool).await.unwrap();
+    assert!(!status.is_activated);
+    assert!(status.is_trial_active);
+    assert!(!status.is_expired);
+    assert_eq!(status.trial_days_left, 7);
+    assert_eq!(status.allowed_modules.len(), 6);
+
+    // 2. Simulate trial expiry (set trial_started_at to 10 days ago)
+    let past_date = (chrono::Local::now() - chrono::Duration::days(10)).to_rfc3339();
+    sqlx::query("UPDATE system_settings SET value = ? WHERE key = 'trial_started_at'")
+        .bind(past_date)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let expired_status = licensing::get_license_and_trial_status(&pool).await.unwrap();
+    assert!(!expired_status.is_activated);
+    assert!(!expired_status.is_trial_active);
+    assert!(expired_status.is_expired);
+    assert_eq!(expired_status.trial_days_left, 0);
+
+    // 3. Attempting to activate non-core module when trial expired should be blocked by set_module_status
+    let toggle_res = modules::set_module_status(&pool, "sales", true).await.unwrap();
+    assert!(!toggle_res.is_active);
+    assert!(toggle_res.message.contains("غير متاحة"));
+}
+
 
 
 

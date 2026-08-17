@@ -1,15 +1,15 @@
 # 🏛️ ميزان ERP | MIZAN ERP
 ### نظام إدارة المؤسسات المعياري لسطح المكتب (Local-First Modular Desktop ERP)
 
-[![Release](https://img.shields.io/badge/Release-v1.0.0--enterprise-blue.svg)](https://github.com/Omar-b381/MIZAN-ERP/releases)
+[![Release](https://img.shields.io/badge/Release-v1.1.0--commercial-blue.svg)](https://github.com/Omar-b381/MIZAN-ERP/releases)
 [![Rust](https://img.shields.io/badge/Rust-1.85%2B-orange.svg?logo=rust)](https://www.rust-lang.org/)
 [![Tauri](https://img.shields.io/badge/Tauri-v2.1-24C8D5.svg?logo=tauri)](https://tauri.app/)
 [![React](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react)](https://reactjs.org/)
 [![SQLite](https://img.shields.io/badge/SQLite-WAL%20Mode-003B57.svg?logo=sqlite)](https://www.sqlite.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-58%2F58%20Passing-brightgreen.svg)]()
+[![License](https://img.shields.io/badge/License-Commercial%20Proprietary-red.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/Tests-69%2F69%20Passing-brightgreen.svg)]()
 
-> **"نظام محلي، معياري، فائق السرعة، ومصمم خصيصًا لتلبية متطلبات الشركات والمؤسسات في مصر والشرق الأوسط بدقة رياضية ومحاسبية مطلقة."**
+> **"نظام تجاري محلي، معياري، مشفر بمفاتيح Ed25519، فائق السرعة، ومصمم خصيصًا لتلبية متطلبات الشركات والمؤسسات بدقة رياضية ومحاسبية مطلقة."**
 
 ---
 
@@ -403,12 +403,12 @@ flowchart LR
    npm install
    ```
 
-3. **تشغيل الاختبارات التلقائية (Run Automated Tests - 58 Tests)**:
-   - اختبارات الواجهة الأمامية (Vitest - 29 اختبار عبر 8 ملفات):
+3. **تشغيل الاختبارات التلقائية (Run Automated Tests - 69 Tests)**:
+   - اختبارات الواجهة الأمامية (Vitest - 33 اختبار عبر 9 ملفات):
      ```bash
      npm test
      ```
-   - فحص واختبارات المحرك الخلفي (Rust Integration Tests - 29 اختبار):
+   - فحص واختبارات المحرك الخلفي (Rust Integration Tests - 36 اختبار):
      ```bash
      cargo check --tests
      ```
@@ -438,6 +438,7 @@ flowchart LR
 | **Phase 5** | الحسابات والفوترة والمدفوعات | ✅ مكتمل | دليل الحسابات، القيود المزدوجة، الفواتير، وميزان المراجعة |
 | **Phase 6** | الموارد البشرية (HR & Attendance) | ✅ مكتمل | دليل الموظفين، عقود العمل، الإجازات، وسجلات الحضور |
 | **Phase 7** | لوحة المؤشرات التنفيذية وحزم التثبيت | ✅ مكتمل | لوحة المؤشرات اللحظية، التحليلات المجمعة، ومثبت Windows `.msi / .exe` |
+| **Phase 8** | التقسية والتغليف والترخيص التجاري | ✅ مكتمل | تشفير Argon2id، نسخ احتياطي WAL، ترخيص Ed25519، وتقييم 7 أيام |
 
 ---
 
@@ -452,10 +453,10 @@ flowchart LR
 
 ## 📄 الترخيص والمصادر المرجعية (Credits & License)
 
-- **الترخيص (License)**: المشروع مرخص تحت رخصة [MIT License](LICENSE).
+- **الترخيص (Commercial Proprietary License)**: هذا البرنامج تجاري ومحمي بموجب حقوق الملكية الفكرية. يُرجى مراجعة ملف [LICENSE](LICENSE) للاطلاع على شروط الاستخدام والتفعيل الرقمي.
 - **المصادر المرجعية (Architectural Inspiration)**: تم استلهام تصميم النطاق المعياري من ممارسات أنظمة الـ ERP المفتوحة المصدر الرائدة (مثل AureusERP و Odoo) مع إعادة البناء الهندسي الكامل كـ Native Rust/Tauri Desktop Application.
 
 ---
 <div align="center">
-  <sub>صُنع بكل إتقان واحترافية • ميزان ERP © 2026 • Enterprise Edition v1.0.0</sub>
+  <sub>صُنع بكل إتقان واحترافية • ميزان ERP © 2026 • Commercial Release v1.1.0</sub>
 </div>

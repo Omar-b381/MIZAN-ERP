@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuthStore } from './stores/authStore';
 import { api } from './lib/api';
-import { ModuleRecord } from './types';
+import { ModuleRecord, TrialStatus } from './types';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
 import { LoginView } from './components/auth/LoginView';
@@ -25,22 +25,28 @@ import { PaymentsView } from './components/accounting/PaymentsView';
 import { EmployeesView } from './components/hr/EmployeesView';
 import { LeavesView } from './components/hr/LeavesView';
 import { AttendanceView } from './components/hr/AttendanceView';
+import { TrialBanner } from './components/licensing/TrialBanner';
+import { TrialExpiredModal } from './components/licensing/TrialExpiredModal';
 
 export function App() {
   const currentUser = useAuthStore((s) => s.currentUser);
   const activeView = useAuthStore((s) => s.activeView);
+  const setActiveView = useAuthStore((s) => s.setActiveView);
   const setCompanies = useAuthStore((s) => s.setCompanies);
 
   const [modules, setModules] = useState<ModuleRecord[]>([]);
+  const [licenseStatus, setLicenseStatus] = useState<TrialStatus | null>(null);
 
   const fetchInitialData = async () => {
     try {
-      const [mList, cList] = await Promise.all([
+      const [mList, cList, lic] = await Promise.all([
         api.getModules(),
         api.listCompanies(),
+        api.getLicenseInfo(),
       ]);
       setModules(mList);
       setCompanies(cList);
+      setLicenseStatus(lic);
     } catch (err) {
       console.error('Failed to load initial app data:', err);
     }
@@ -105,19 +111,35 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans antialiased">
+      {/* Trial Countdown Banner */}
+      <TrialBanner
+        status={licenseStatus}
+        onOpenActivation={() => setActiveView('settings')}
+      />
+
       {/* Brand Header */}
       <Header />
 
-      {/* Main Container */}
+      {/* Main Workspace Body */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Navigation Sidebar */}
+        {/* Left Module Navigation */}
         <Sidebar modules={modules} />
 
-        {/* Content Viewport */}
-        <main className="flex-1 p-6 md:p-8 overflow-y-auto bg-muted/20">
-          <div className="max-w-7xl mx-auto">{renderActiveView()}</div>
+        {/* View Surface */}
+        <main className="flex-1 overflow-y-auto p-6 bg-secondary/10">
+          <div className="max-w-7xl mx-auto space-y-6">
+            {renderActiveView()}
+          </div>
         </main>
       </div>
+
+      {/* Trial Expired Full Blocking Overlay Modal */}
+      {licenseStatus?.is_expired && (
+        <TrialExpiredModal
+          status={licenseStatus}
+          onActivated={(updated) => setLicenseStatus(updated)}
+        />
+      )}
     </div>
   );
 }

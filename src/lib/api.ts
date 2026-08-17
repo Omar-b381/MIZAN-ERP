@@ -58,6 +58,10 @@ import {
   CreateLeaveInput,
   RecordAttendanceInput,
   DashboardMetrics,
+  TrialStatus,
+  BackupInfo,
+  RestoreResult,
+  DiagnosticExportResult,
 } from '../types';
 
 let mockModules: ModuleRecord[] = [
@@ -2150,6 +2154,80 @@ async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Prom
 
       return metrics as unknown as T;
     }
+
+    // Phase 8: Hardening, Backups & Licensing Mocks
+    case 'cmd_get_machine_id': {
+      return 'MIZAN-DEV-7F9A' as unknown as T;
+    }
+
+    case 'cmd_get_license_info': {
+      const status: TrialStatus = {
+        is_activated: false,
+        is_trial_active: true,
+        is_expired: false,
+        trial_days_left: 6,
+        machine_id: 'MIZAN-DEV-7F9A',
+        licensee_name: null,
+        tier: 'trial_all_unlocked',
+        allowed_modules: ['core', 'inventory', 'sales', 'purchases', 'accounting', 'employees'],
+        message: 'الفترة التجريبية نشطة (متبقي 6 أيام)',
+      };
+      return status as unknown as T;
+    }
+
+    case 'cmd_activate_license': {
+      const status: TrialStatus = {
+        is_activated: true,
+        is_trial_active: false,
+        is_expired: false,
+        trial_days_left: 0,
+        machine_id: 'MIZAN-DEV-7F9A',
+        licensee_name: 'شركة ميزان للتجارة والتوزيع',
+        tier: 'enterprise',
+        allowed_modules: ['core', 'inventory', 'sales', 'purchases', 'accounting', 'employees'],
+        message: 'تم تفعيل الترخيص بنجاح!',
+      };
+      return status as unknown as T;
+    }
+
+    case 'cmd_create_backup': {
+      const backupInfo: BackupInfo = {
+        filename: `mizan_backup_${new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 15)}.db`,
+        file_path: 'C:/Users/Omar/AppData/Roaming/com.mizan.erp/backups/mizan_backup.db',
+        size_bytes: 524288,
+        created_at: new Date().toISOString(),
+      };
+      return backupInfo as unknown as T;
+    }
+
+    case 'cmd_list_backups': {
+      const backups: BackupInfo[] = [
+        {
+          filename: 'mizan_backup_20260817_210000.db',
+          file_path: 'C:/Users/Omar/AppData/Roaming/com.mizan.erp/backups/mizan_backup_20260817_210000.db',
+          size_bytes: 524288,
+          created_at: new Date().toISOString(),
+        },
+      ];
+      return backups as unknown as T;
+    }
+
+    case 'cmd_restore_backup': {
+      const res: RestoreResult = {
+        success: true,
+        message: 'تمت استعادة قاعدة البيانات بنجاح',
+        safety_snapshot_path: 'C:/Users/Omar/AppData/Roaming/com.mizan.erp/backups/mizan_pre_restore.db',
+      };
+      return res as unknown as T;
+    }
+
+    case 'cmd_export_diagnostics': {
+      const diag: DiagnosticExportResult = {
+        export_path: (args?.export_dest as string) || 'mizan_diagnostics.json',
+        total_entries: 12,
+      };
+      return diag as unknown as T;
+    }
     default:
       throw new Error(`Command ${cmd} not implemented in mock`);
   }
@@ -2277,4 +2355,18 @@ export const api = {
   // Phase 7: Executive Dashboard & Analytics
   getDashboardMetrics: (company_id: number) =>
     invokeTauri<DashboardMetrics>('cmd_get_dashboard_metrics', { company_id }),
+
+  // Phase 8: Hardening, Backups & Licensing API
+  getMachineId: () => invokeTauri<string>('cmd_get_machine_id'),
+  getLicenseInfo: () => invokeTauri<TrialStatus>('cmd_get_license_info'),
+  activateLicense: (license_content: string) =>
+    invokeTauri<TrialStatus>('cmd_activate_license', { license_content }),
+  createBackup: (custom_backup_folder?: string) =>
+    invokeTauri<BackupInfo>('cmd_create_backup', { custom_backup_folder }),
+  listBackups: (custom_backup_folder?: string) =>
+    invokeTauri<BackupInfo[]>('cmd_list_backups', { custom_backup_folder }),
+  restoreBackup: (backup_file_path: string, custom_backup_folder?: string) =>
+    invokeTauri<RestoreResult>('cmd_restore_backup', { backup_file_path, custom_backup_folder }),
+  exportDiagnostics: (export_dest: string) =>
+    invokeTauri<DiagnosticExportResult>('cmd_export_diagnostics', { export_dest }),
 };

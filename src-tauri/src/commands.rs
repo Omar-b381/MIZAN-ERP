@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager, State};
-use crate::{accounting, activity, auth, backup, companies, dashboard, diagnostics, hr, inventory, modules, partners, products, purchases, rbac, sales, settings, AppState};
+use crate::{accounting, activity, auth, backup, companies, dashboard, diagnostics, hr, inventory, licensing, modules, partners, products, purchases, rbac, sales, settings, AppState};
 
 // ----------------------------------------------------
 // Modules Commands
@@ -1213,4 +1213,29 @@ pub async fn cmd_export_diagnostics(
     let dest_path = Path::new(&export_dest);
 
     diagnostics::export_diagnostic_report(&app_dir, dest_path).map_err(|e| e.to_string())
+}
+
+// ----------------------------------------------------
+// Track B: Commercial Licensing & Trial Commands
+// ----------------------------------------------------
+#[tauri::command]
+pub async fn cmd_get_license_info(
+    state: State<'_, AppState>,
+) -> Result<licensing::TrialStatus, String> {
+    licensing::get_license_and_trial_status(&state.pool)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn cmd_get_machine_id() -> String {
+    licensing::get_machine_id()
+}
+
+#[tauri::command]
+pub async fn cmd_activate_license(
+    state: State<'_, AppState>,
+    license_content: String,
+) -> Result<licensing::TrialStatus, String> {
+    licensing::activate_license(&state.pool, &license_content).await
 }

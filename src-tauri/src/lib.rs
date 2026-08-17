@@ -9,6 +9,7 @@ pub mod db;
 pub mod diagnostics;
 pub mod hr;
 pub mod inventory;
+pub mod licensing;
 pub mod modules;
 pub mod partners;
 pub mod products;
@@ -146,7 +147,11 @@ pub fn run() {
             commands::cmd_create_backup,
             commands::cmd_list_backups,
             commands::cmd_restore_backup,
-            commands::cmd_export_diagnostics
+            commands::cmd_export_diagnostics,
+            // Phase 8 Track B: Commercial Licensing & Trial
+            commands::cmd_get_license_info,
+            commands::cmd_get_machine_id,
+            commands::cmd_activate_license
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -26,10 +26,10 @@ import { useAuthStore } from '../../stores/authStore';
 import { ModuleRecord } from '../../types';
 
 interface SidebarProps {
-  modules: ModuleRecord[];
+  modules?: ModuleRecord[];
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ modules }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ modules = [] }) => {
   const { t } = useTranslation();
   const activeView = useAuthStore((s) => s.activeView);
   const setActiveView = useAuthStore((s) => s.setActiveView);
