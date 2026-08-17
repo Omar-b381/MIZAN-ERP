@@ -43,7 +43,7 @@ export const UsersView: React.FC = () => {
       await api.createUser({
         company_id: activeCompanyId,
         username: formData.username,
-        email: formData.email || null,
+        email: formData.email || undefined,
         password: formData.password,
         full_name: formData.full_name,
         role_ids: [formData.role_id],

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use tauri::State;
-use crate::{activity, auth, companies, modules, partners, rbac, settings, AppState};
+use crate::{activity, auth, companies, inventory, modules, partners, products, rbac, settings, AppState};
 
 // ----------------------------------------------------
 // Modules Commands
@@ -373,6 +373,288 @@ pub async fn cmd_log_activity(
     input: activity::LogActivityInput,
 ) -> Result<i64, String> {
     activity::log_activity(&state.pool, input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ----------------------------------------------------
+// Products & Catalog Commands (Phase 2)
+// ----------------------------------------------------
+#[tauri::command]
+pub async fn cmd_list_uoms(state: State<'_, AppState>) -> Result<Vec<products::Uom>, String> {
+    products::list_uoms(&state.pool)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_list_product_categories(
+    state: State<'_, AppState>,
+    company_id: i64,
+) -> Result<Vec<products::ProductCategory>, String> {
+    products::list_product_categories(&state.pool, company_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_create_product_category(
+    state: State<'_, AppState>,
+    company_id: i64,
+    name: String,
+    parent_id: Option<i64>,
+) -> Result<products::ProductCategory, String> {
+    products::create_product_category(&state.pool, company_id, name, parent_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_list_products(
+    state: State<'_, AppState>,
+    filter: products::ProductFilter,
+) -> Result<Vec<products::ProductWithStock>, String> {
+    products::list_products(&state.pool, filter)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_get_product(
+    state: State<'_, AppState>,
+    id: i64,
+) -> Result<Option<products::Product>, String> {
+    products::get_product_by_id(&state.pool, id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_create_product(
+    state: State<'_, AppState>,
+    input: products::CreateProductInput,
+) -> Result<products::Product, String> {
+    let company_id = input.company_id;
+    let name = input.name.clone();
+    let product = products::create_product(&state.pool, input)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let _ = activity::log_activity(
+        &state.pool,
+        activity::LogActivityInput {
+            company_id,
+            entity_type: "product".to_string(),
+            entity_id: product.id,
+            user_id: None,
+            action: "created".to_string(),
+            summary: format!("Product '{}' created ({})", name, product.sku),
+            details_json: None,
+        },
+    )
+    .await;
+
+    Ok(product)
+}
+
+#[tauri::command]
+pub async fn cmd_update_product(
+    state: State<'_, AppState>,
+    input: products::UpdateProductInput,
+) -> Result<products::Product, String> {
+    let product = products::update_product(&state.pool, input)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let _ = activity::log_activity(
+        &state.pool,
+        activity::LogActivityInput {
+            company_id: product.company_id,
+            entity_type: "product".to_string(),
+            entity_id: product.id,
+            user_id: None,
+            action: "updated".to_string(),
+            summary: format!("Product '{}' updated", product.name),
+            details_json: None,
+        },
+    )
+    .await;
+
+    Ok(product)
+}
+
+#[tauri::command]
+pub async fn cmd_delete_product(
+    state: State<'_, AppState>,
+    id: i64,
+) -> Result<(), String> {
+    products::delete_product(&state.pool, id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ----------------------------------------------------
+// Inventory & Locations Commands (Phase 2)
+// ----------------------------------------------------
+#[tauri::command]
+pub async fn cmd_list_locations(
+    state: State<'_, AppState>,
+    company_id: i64,
+) -> Result<Vec<inventory::StockLocation>, String> {
+    inventory::list_locations(&state.pool, company_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_create_location(
+    state: State<'_, AppState>,
+    input: inventory::CreateLocationInput,
+) -> Result<inventory::StockLocation, String> {
+    inventory::create_location(&state.pool, input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_list_warehouses(
+    state: State<'_, AppState>,
+    company_id: i64,
+) -> Result<Vec<inventory::StockWarehouse>, String> {
+    inventory::list_warehouses(&state.pool, company_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_list_picking_types(
+    state: State<'_, AppState>,
+    company_id: i64,
+) -> Result<Vec<inventory::StockPickingType>, String> {
+    inventory::list_picking_types(&state.pool, company_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_list_stock_quantities(
+    state: State<'_, AppState>,
+    company_id: i64,
+    location_id: Option<i64>,
+    product_id: Option<i64>,
+) -> Result<Vec<inventory::StockQuantityDetail>, String> {
+    inventory::list_stock_quantities(&state.pool, company_id, location_id, product_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_list_pickings(
+    state: State<'_, AppState>,
+    company_id: i64,
+    state_filter: Option<String>,
+) -> Result<Vec<inventory::StockPicking>, String> {
+    inventory::list_pickings(&state.pool, company_id, state_filter)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_get_picking(
+    state: State<'_, AppState>,
+    id: i64,
+) -> Result<Option<inventory::StockPicking>, String> {
+    inventory::get_picking_by_id(&state.pool, id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_get_picking_moves(
+    state: State<'_, AppState>,
+    picking_id: i64,
+) -> Result<Vec<inventory::StockMove>, String> {
+    inventory::get_picking_moves(&state.pool, picking_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_create_picking(
+    state: State<'_, AppState>,
+    input: inventory::CreatePickingInput,
+) -> Result<inventory::StockPicking, String> {
+    inventory::create_picking(&state.pool, input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_confirm_picking(
+    state: State<'_, AppState>,
+    id: i64,
+) -> Result<inventory::StockPicking, String> {
+    inventory::confirm_and_validate_picking(&state.pool, id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_cancel_picking(
+    state: State<'_, AppState>,
+    id: i64,
+) -> Result<inventory::StockPicking, String> {
+    inventory::cancel_picking(&state.pool, id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_list_inventory_adjustments(
+    state: State<'_, AppState>,
+    company_id: i64,
+) -> Result<Vec<inventory::StockInventoryAdjustment>, String> {
+    inventory::list_inventory_adjustments(&state.pool, company_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_get_adjustment_lines(
+    state: State<'_, AppState>,
+    adjustment_id: i64,
+) -> Result<Vec<inventory::StockInventoryAdjustmentLineDetail>, String> {
+    inventory::get_adjustment_lines(&state.pool, adjustment_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_create_inventory_adjustment(
+    state: State<'_, AppState>,
+    input: inventory::CreateInventoryAdjustmentInput,
+) -> Result<inventory::StockInventoryAdjustment, String> {
+    inventory::create_inventory_adjustment(&state.pool, input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_update_adjustment_line_count(
+    state: State<'_, AppState>,
+    input: inventory::UpdateAdjustmentLineCountInput,
+) -> Result<(), String> {
+    inventory::update_adjustment_line_count(&state.pool, input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_validate_inventory_adjustment(
+    state: State<'_, AppState>,
+    adjustment_id: i64,
+) -> Result<inventory::StockInventoryAdjustment, String> {
+    inventory::validate_inventory_adjustment(&state.pool, adjustment_id)
         .await
         .map_err(|e| e.to_string())
 }

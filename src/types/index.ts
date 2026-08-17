@@ -125,3 +125,220 @@ export interface ActivityLog {
   details_json?: string | null;
   created_at: string;
 }
+
+// ----------------------------------------------------
+// Phase 2: Products & Catalog Types
+// ----------------------------------------------------
+export interface UomCategory {
+  id: number;
+  name: string;
+  created_at: string;
+}
+
+export interface Uom {
+  id: number;
+  category_id: number;
+  name: string;
+  uom_type: 'reference' | 'bigger' | 'smaller';
+  ratio: number;
+  rounding: number;
+  is_active: number;
+  created_at: string;
+}
+
+export interface ProductCategory {
+  id: number;
+  company_id: number;
+  name: string;
+  parent_id?: number | null;
+  complete_name?: string | null;
+  created_at: string;
+}
+
+export type ProductType = 'storable' | 'consumable' | 'service';
+export type TrackingMode = 'none' | 'lot' | 'serial';
+
+export interface Product {
+  id: number;
+  company_id: number;
+  name: string;
+  sku: string;
+  barcode?: string | null;
+  description?: string | null;
+  type: ProductType;
+  category_id?: number | null;
+  uom_id: number;
+  purchase_uom_id?: number | null;
+  sale_price_cents: number;
+  cost_price_cents: number;
+  tracking_mode: TrackingMode;
+  min_stock_milli?: number | null;
+  max_stock_milli?: number | null;
+  is_active: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductWithStock {
+  product: Product;
+  category_name?: string | null;
+  uom_name: string;
+  qty_on_hand_milli: number;
+}
+
+export interface CreateProductInput {
+  company_id: number;
+  name: string;
+  sku: string;
+  barcode?: string | null;
+  description?: string | null;
+  type?: ProductType;
+  category_id?: number | null;
+  uom_id: number;
+  purchase_uom_id?: number | null;
+  sale_price_cents?: number;
+  cost_price_cents?: number;
+  tracking_mode?: TrackingMode;
+  min_stock_milli?: number;
+  max_stock_milli?: number;
+}
+
+// ----------------------------------------------------
+// Phase 2: Inventory & Operations Types
+// ----------------------------------------------------
+export type LocationType = 'view' | 'internal' | 'customer' | 'supplier' | 'inventory_loss' | 'production';
+
+export interface CreateLocationInput {
+  company_id: number;
+  name: string;
+  parent_id?: number | null;
+  location_type: LocationType;
+}
+
+export interface StockLocation {
+  id: number;
+  company_id: number;
+  name: string;
+  parent_id?: number | null;
+  complete_name: string;
+  location_type: LocationType;
+  is_active: number;
+  created_at: string;
+}
+
+export interface StockWarehouse {
+  id: number;
+  company_id: number;
+  name: string;
+  code: string;
+  view_location_id: number;
+  lot_stock_location_id: number;
+  is_active: number;
+  created_at: string;
+}
+
+export interface StockPickingType {
+  id: number;
+  company_id: number;
+  warehouse_id?: number | null;
+  name: string;
+  code: 'incoming' | 'outgoing' | 'internal' | 'adjustment';
+  sequence_prefix: string;
+  next_number: number;
+  default_src_location_id?: number | null;
+  default_dest_location_id?: number | null;
+  created_at: string;
+}
+
+export type PickingState = 'draft' | 'waiting' | 'confirmed' | 'done' | 'cancelled';
+
+export interface StockPicking {
+  id: number;
+  company_id: number;
+  name: string;
+  picking_type_id: number;
+  partner_id?: number | null;
+  src_location_id: number;
+  dest_location_id: number;
+  scheduled_date?: string | null;
+  date_done?: string | null;
+  origin?: string | null;
+  state: PickingState;
+  note?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StockMove {
+  id: number;
+  company_id: number;
+  picking_id?: number | null;
+  product_id: number;
+  name: string;
+  src_location_id: number;
+  dest_location_id: number;
+  quantity_milli: number;
+  uom_id: number;
+  state: 'draft' | 'confirmed' | 'done' | 'cancelled';
+  reference?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StockQuantityDetail {
+  id: number;
+  company_id: number;
+  product_id: number;
+  product_name: string;
+  sku: string;
+  location_id: number;
+  location_name: string;
+  location_type: LocationType;
+  lot_serial_number: string;
+  quantity_milli: number;
+  uom_name: string;
+  updated_at: string;
+}
+
+export interface StockInventoryAdjustment {
+  id: number;
+  company_id: number;
+  name: string;
+  location_id: number;
+  state: 'draft' | 'in_progress' | 'done' | 'cancelled';
+  accounting_date?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StockInventoryAdjustmentLineDetail {
+  id: number;
+  adjustment_id: number;
+  product_id: number;
+  product_name: string;
+  sku: string;
+  lot_serial_number: string;
+  theoretical_qty_milli: number;
+  counted_qty_milli: number;
+  difference_qty_milli: number;
+  uom_name: string;
+}
+
+export interface CreatePickingMoveInput {
+  product_id: number;
+  quantity_milli: number;
+  uom_id: number;
+  lot_serial_number?: string | null;
+}
+
+export interface CreatePickingInput {
+  company_id: number;
+  picking_type_id: number;
+  partner_id?: number | null;
+  src_location_id?: number | null;
+  dest_location_id?: number | null;
+  scheduled_date?: string | null;
+  origin?: string | null;
+  note?: string | null;
+  moves: CreatePickingMoveInput[];
+}

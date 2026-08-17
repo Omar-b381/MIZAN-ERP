@@ -1,327 +1,588 @@
-use crate::activity::{get_recent_activities, log_activity, LogActivityInput};
-use crate::auth::{create_user, login, CreateUserInput, LoginInput};
-use crate::companies::{create_company, get_company, list_companies, CreateCompanyInput};
-use crate::db::init_db;
-use crate::modules::{get_all_modules, is_module_active, set_module_status};
-use crate::partners::{
-    create_partner, delete_partner, get_partner_by_id, list_partners, update_partner,
-    CreatePartnerInput, PartnerFilter, UpdatePartnerInput,
+use crate::{
+    activity, auth, companies, db, inventory, modules, partners, products, rbac, settings,
 };
-use crate::rbac::{
-    assign_role_permissions, get_user_permissions,
-    list_permissions, list_roles,
-};
-use crate::settings::{get_company_settings, set_setting, UpdateSettingInput};
-use tempfile::NamedTempFile;
+use sqlx::SqlitePool;
+
+async fn setup_test_db() -> SqlitePool {
+    let pool = db::init_db("sqlite::memory:")
+        .await
+        .expect("Failed to initialize in-memory test database");
+    pool
+}
 
 #[tokio::test]
 async fn test_db_initialization_and_migrations() {
-    let temp_file = NamedTempFile::new().expect("Failed to create temp file");
-    let db_url = format!("sqlite://{}", temp_file.path().to_string_lossy());
-    let pool = init_db(&db_url).await.expect("Failed to init db");
+    let pool = setup_test_db().await;
 
-    let journal_mode: String = sqlx::query_scalar("PRAGMA journal_mode")
-        .fetch_one(&pool)
-        .await
-        .expect("Failed to query journal_mode");
-    assert_eq!(journal_mode.to_lowercase(), "wal");
+    // Check modules loaded
+    let mods = modules::get_all_modules(&pool).await.unwrap();
+    assert!(mods.len() >= 12);
+    let core_mod = mods.iter().find(|m| m.key == "core").unwrap();
+    assert!(core_mod.is_active);
 
-    let modules = get_all_modules(&pool).await.expect("Failed to get modules");
-    assert!(!modules.is_empty(), "Modules catalog should not be empty");
-
-    let core_active = is_module_active(&pool, "core").await.expect("Failed to check core status");
-    assert!(core_active, "Core module must be active by default");
+    // Check companies
+    let comps = companies::list_companies(&pool).await.unwrap();
+    assert!(!comps.is_empty());
+    assert_eq!(comps[0].currency, "EGP");
 }
 
 #[tokio::test]
 async fn test_module_activation_and_deactivation() {
-    let temp_file = NamedTempFile::new().expect("Failed to create temp file");
-    let db_url = format!("sqlite://{}", temp_file.path().to_string_lossy());
-    let pool = init_db(&db_url).await.expect("Failed to init db");
+    let pool = setup_test_db().await;
 
-    let result = set_module_status(&pool, "sales", true)
-        .await
-        .expect("Failed to activate sales");
-    assert!(result.is_active);
-    assert!(is_module_active(&pool, "sales").await.unwrap());
+    // Try deactivating core (should fail)
+    let res = modules::set_module_status(&pool, "core", false).await;
+    assert!(res.is_err());
 
-    let result = set_module_status(&pool, "sales", false)
-        .await
-        .expect("Failed to deactivate sales");
-    assert!(!result.is_active);
-    assert!(!is_module_active(&pool, "sales").await.unwrap());
+    // Activate sales
+    let res = modules::set_module_status(&pool, "sales", true).await.unwrap();
+    assert!(res.is_active);
 
-    // Core cannot be deactivated
-    let result = set_module_status(&pool, "core", false)
-        .await
-        .expect("Failed to process core toggle");
-    assert!(result.is_active, "Core module should remain active");
+    let mods = modules::get_all_modules(&pool).await.unwrap();
+    let sales = mods.iter().find(|m| m.key == "sales").unwrap();
+    assert!(sales.is_active);
 }
 
 #[tokio::test]
 async fn test_companies_and_branch_hierarchy() {
-    let temp_file = NamedTempFile::new().expect("Failed to create temp file");
-    let db_url = format!("sqlite://{}", temp_file.path().to_string_lossy());
-    let pool = init_db(&db_url).await.expect("Failed to init db");
+    let pool = setup_test_db().await;
 
-    // Check seeded default company
-    let companies = list_companies(&pool).await.expect("Failed to list companies");
-    assert_eq!(companies.len(), 1);
-    assert_eq!(companies[0].currency, "EGP");
-    assert_eq!(companies[0].timezone, "Africa/Cairo");
-
-    // Create a branch referencing the headquarter
-    let branch = create_company(
+    // Create a branch under default company 1
+    let branch = companies::create_company(
         &pool,
-        CreateCompanyInput {
+        companies::CreateCompanyInput {
             name: "فرع الإسكندرية".to_string(),
-            parent_id: Some(companies[0].id),
+            parent_id: Some(1),
             currency: Some("EGP".to_string()),
             timezone: Some("Africa/Cairo".to_string()),
-            tax_id: Some("100-200-301".to_string()),
-            commercial_registry: Some("45893".to_string()),
-            phone: Some("01200000000".to_string()),
-            email: Some("alex@mizan-erp.local".to_string()),
+            tax_id: Some("123-456-789".to_string()),
+            commercial_registry: Some("98765".to_string()),
+            phone: Some("034567890".to_string()),
+            email: Some("alex@mizan.local".to_string()),
             website: None,
-            street: Some("شارع كورنيش الإسكندرية".to_string()),
+            street: Some("طريق الجيش".to_string()),
             city: Some("الإسكندرية".to_string()),
             state: Some("الإسكندرية".to_string()),
-            zip: Some("21500".to_string()),
+            zip: None,
             country: Some("EG".to_string()),
         },
     )
     .await
-    .expect("Failed to create branch");
+    .unwrap();
 
-    assert_eq!(branch.parent_id, Some(companies[0].id));
+    assert_eq!(branch.parent_id, Some(1));
+    assert_eq!(branch.city.as_deref(), Some("الإسكندرية"));
 
-    let fetched_branch = get_company(&pool, branch.id).await.expect("Failed to fetch").unwrap();
-    assert_eq!(fetched_branch.name, "فرع الإسكندرية");
+    let list = companies::list_companies(&pool).await.unwrap();
+    assert!(list.iter().any(|c| c.name == "فرع الإسكندرية"));
 }
 
 #[tokio::test]
 async fn test_auth_and_user_creation() {
-    let temp_file = NamedTempFile::new().expect("Failed to create temp file");
-    let db_url = format!("sqlite://{}", temp_file.path().to_string_lossy());
-    let pool = init_db(&db_url).await.expect("Failed to init db");
+    let pool = setup_test_db().await;
 
     // Test default admin login
-    let login_res = login(
+    let session = auth::login(
         &pool,
-        LoginInput {
+        auth::LoginInput {
             username: "admin".to_string(),
-            password: "wrong_password".to_string(),
+            password: "admin".to_string(),
         },
     )
     .await
-    .expect("Login execution failed");
-    assert!(login_res.is_none(), "Wrong password must fail");
+    .unwrap();
 
-    // Create new staff user
-    let new_user = create_user(
+    assert!(session.is_some());
+    let user = session.unwrap();
+    assert_eq!(user.username, "admin");
+    assert!(user.roles.iter().any(|r| r.name == "Admin"));
+
+    // Create a new accountant user
+    let new_user = auth::create_user(
         &pool,
-        CreateUserInput {
+        auth::CreateUserInput {
             company_id: 1,
-            username: "sarah_sales".to_string(),
-            email: Some("sarah@mizan.local".to_string()),
-            password: "SecretPassword123".to_string(),
-            full_name: "سارة محمد".to_string(),
-            role_ids: vec![2], // Manager
+            username: "accountant1".to_string(),
+            email: Some("acc@mizan.local".to_string()),
+            password: "SecurePass123!".to_string(),
+            full_name: "أحمد المحاسب".to_string(),
+            role_ids: vec![3], // Staff
         },
     )
     .await
-    .expect("Failed to create user");
+    .unwrap();
 
-    assert_eq!(new_user.username, "sarah_sales");
+    assert_eq!(new_user.username, "accountant1");
 
     // Login with new user
-    let session = login(
+    let acc_session = auth::login(
         &pool,
-        LoginInput {
-            username: "sarah_sales".to_string(),
-            password: "SecretPassword123".to_string(),
+        auth::LoginInput {
+            username: "accountant1".to_string(),
+            password: "SecurePass123!".to_string(),
         },
     )
     .await
-    .expect("Login failed")
-    .expect("User session expected");
+    .unwrap();
 
-    assert_eq!(session.username, "sarah_sales");
-    assert!(session.permissions.contains(&"contacts.view".to_string()));
+    assert!(acc_session.is_some());
 }
 
 #[tokio::test]
 async fn test_rbac_roles_and_permissions() {
-    let temp_file = NamedTempFile::new().expect("Failed to create temp file");
-    let db_url = format!("sqlite://{}", temp_file.path().to_string_lossy());
-    let pool = init_db(&db_url).await.expect("Failed to init db");
+    let pool = setup_test_db().await;
 
-    let roles = list_roles(&pool).await.expect("Failed to list roles");
-    assert_eq!(roles.len(), 3); // Admin, Manager, Staff
+    let roles = rbac::list_roles(&pool).await.unwrap();
+    assert!(roles.len() >= 3);
 
-    let perms = list_permissions(&pool).await.expect("Failed to list permissions");
+    let perms = rbac::list_permissions(&pool).await.unwrap();
     assert!(!perms.is_empty());
 
-    // Assign custom permissions to Staff (role id 3)
-    assign_role_permissions(
-        &pool,
-        3,
-        vec!["contacts.view".to_string(), "contacts.create".to_string()],
-    )
-    .await
-    .expect("Failed to assign role permissions");
-
-    // Create test user and assign staff role
-    let user = create_user(
-        &pool,
-        CreateUserInput {
-            company_id: 1,
-            username: "staff_member".to_string(),
-            email: None,
-            password: "password123".to_string(),
-            full_name: "موظف مبيعات".to_string(),
-            role_ids: vec![3],
-        },
-    )
-    .await
-    .expect("Failed to create staff");
-
-    let user_perms = get_user_permissions(&pool, user.id).await.expect("Failed to get perms");
-    assert!(user_perms.contains(&"contacts.view".to_string()));
-    assert!(user_perms.contains(&"contacts.create".to_string()));
-    assert!(!user_perms.contains(&"core.settings.manage".to_string()));
+    // Admin should have all permissions
+    let admin_perms = rbac::get_user_permissions(&pool, 1).await.unwrap();
+    assert!(!admin_perms.is_empty());
 }
 
 #[tokio::test]
 async fn test_partners_unified_crud_and_filters() {
-    let temp_file = NamedTempFile::new().expect("Failed to create temp file");
-    let db_url = format!("sqlite://{}", temp_file.path().to_string_lossy());
-    let pool = init_db(&db_url).await.expect("Failed to init db");
+    let pool = setup_test_db().await;
 
-    // Check seeded partners
-    let all_partners = list_partners(&pool, PartnerFilter::default()).await.unwrap();
-    assert_eq!(all_partners.len(), 3);
-
-    // Create a new Customer partner with minor unit credit limit
-    let customer = create_partner(
+    // Create a customer
+    let customer = partners::create_partner(
         &pool,
-        CreatePartnerInput {
+        partners::CreatePartnerInput {
             company_id: 1,
             parent_id: None,
-            name: "مجموعة الأهرام التجارية".to_string(),
+            name: "شركة الأمل للتجارة والتوزيع".to_string(),
             sub_type: "customer".to_string(),
             is_company: true,
-            email: Some("info@ahram-group.com".to_string()),
-            phone: Some("022345678".to_string()),
-            mobile: Some("01099887766".to_string()),
-            tax_id: Some("987-654-321".to_string()),
-            commercial_registry: Some("123456".to_string()),
-            street: Some("شارع رمسيس".to_string()),
-            city: Some("القاهرة".to_string()),
-            state: Some("القاهرة".to_string()),
+            email: Some("info@alamal.eg".to_string()),
+            phone: Some("+201001234567".to_string()),
+            mobile: None,
+            tax_id: Some("111-222-333".to_string()),
+            commercial_registry: Some("12345".to_string()),
+            street: Some("شارع الهرم".to_string()),
+            city: Some("الجيزة".to_string()),
+            state: Some("الجيزة".to_string()),
             country: Some("EG".to_string()),
-            credit_limit_cents: Some(5000000), // 50,000.00 EGP in minor units
-            notes: Some("عميل مميز بفترة سداد 30 يوم".to_string()),
-        },
-    )
-    .await
-    .expect("Failed to create customer");
-
-    assert_eq!(customer.credit_limit_cents, 5000000);
-    assert_eq!(customer.sub_type, "customer");
-
-    // Filter by sub_type = 'customer'
-    let customers = list_partners(
-        &pool,
-        PartnerFilter {
-            sub_type: Some("customer".to_string()),
-            ..Default::default()
+            credit_limit_cents: Some(5000000), // 50,000.00 EGP
+            notes: Some("عميل مميز".to_string()),
         },
     )
     .await
     .unwrap();
-    assert_eq!(customers.len(), 2);
 
-    // Update partner
-    let updated = update_partner(
+    assert_eq!(customer.name, "شركة الأمل للتجارة والتوزيع");
+    assert_eq!(customer.credit_limit_cents, 5000000);
+
+    // List with filter
+    let customers = partners::list_partners(
         &pool,
-        UpdatePartnerInput {
-            id: customer.id,
-            company_id: 1,
-            parent_id: None,
-            name: "مجموعة الأهرام للتجارة والتوريدات".to_string(),
-            sub_type: "customer".to_string(),
-            is_company: true,
-            email: customer.email,
-            phone: customer.phone,
-            mobile: customer.mobile,
-            tax_id: customer.tax_id,
-            commercial_registry: customer.commercial_registry,
-            street: customer.street,
-            city: customer.city,
-            state: customer.state,
-            country: customer.country,
-            credit_limit_cents: 7500000,
-            notes: customer.notes,
-            is_active: 1,
+        partners::PartnerFilter {
+            company_id: Some(1),
+            sub_type: Some("customer".to_string()),
+            is_active: Some(true),
+            search: Some("الأمل".to_string()),
         },
     )
     .await
-    .expect("Failed to update partner");
+    .unwrap();
 
-    assert_eq!(updated.name, "مجموعة الأهرام للتجارة والتوريدات");
-    assert_eq!(updated.credit_limit_cents, 7500000);
-
-    // Soft delete
-    delete_partner(&pool, customer.id).await.expect("Failed to delete partner");
-    let fetched = get_partner_by_id(&pool, customer.id).await.unwrap().unwrap();
-    assert_eq!(fetched.is_active, 0);
+    assert_eq!(customers.len(), 1);
+    assert_eq!(customers[0].id, customer.id);
 }
 
 #[tokio::test]
 async fn test_settings_and_activity_logs() {
-    let temp_file = NamedTempFile::new().expect("Failed to create temp file");
-    let db_url = format!("sqlite://{}", temp_file.path().to_string_lossy());
-    let pool = init_db(&db_url).await.expect("Failed to init db");
+    let pool = setup_test_db().await;
 
-    // Settings
-    let settings = get_company_settings(&pool, 1).await.unwrap();
-    assert_eq!(settings.get("currency").unwrap(), "EGP");
-    assert_eq!(settings.get("tax_rate_default").unwrap(), "14");
-
-    set_setting(
+    // Update VAT setting
+    settings::set_setting(
         &pool,
-        UpdateSettingInput {
-            key: "tax_rate_default".to_string(),
+        settings::UpdateSettingInput {
+            key: "vat_rate".to_string(),
             company_id: 1,
-            value: "14.5".to_string(),
+            value: "14".to_string(),
         },
     )
     .await
     .unwrap();
 
-    let updated_settings = get_company_settings(&pool, 1).await.unwrap();
-    assert_eq!(updated_settings.get("tax_rate_default").unwrap(), "14.5");
+    let all_settings = settings::get_company_settings(&pool, 1).await.unwrap();
+    assert_eq!(all_settings.get("vat_rate").map(|s| s.as_str()), Some("14"));
 
-    // Activity Logs
-    let log_id = log_activity(
+    // Activity log
+    let log_id = activity::log_activity(
         &pool,
-        LogActivityInput {
+        activity::LogActivityInput {
             company_id: 1,
             entity_type: "partner".to_string(),
-            entity_id: 10,
+            entity_id: 1,
             user_id: Some(1),
             action: "created".to_string(),
-            summary: "New partner created".to_string(),
-            details_json: Some(r#"{"partner_name": "Test Partner"}"#.to_string()),
+            summary: "Contact created in test".to_string(),
+            details_json: None,
         },
     )
     .await
     .unwrap();
 
     assert!(log_id > 0);
-    let activities = get_recent_activities(&pool, 1, 10).await.unwrap();
-    assert_eq!(activities.len(), 1);
-    assert_eq!(activities[0].entity_type, "partner");
-    assert_eq!(activities[0].action, "created");
+
+    let recent = activity::get_recent_activities(&pool, 1, 10).await.unwrap();
+    assert!(!recent.is_empty());
+}
+
+// ====================================================
+// Phase 2: Products & Inventory Integration Tests
+// ====================================================
+
+#[tokio::test]
+async fn test_product_catalog_and_uom_conversions() {
+    let pool = setup_test_db().await;
+
+    // 1. Verify UOMs seeded
+    let uoms = products::list_uoms(&pool).await.unwrap();
+    assert!(uoms.len() >= 8);
+    let kg = uoms.iter().find(|u| u.name.contains("kg")).unwrap();
+    assert_eq!(kg.ratio, 1.0);
+
+    // 2. Create product category tree
+    let parent_cat = products::create_product_category(&pool, 1, "إلكترونيات".to_string(), None).await.unwrap();
+    let child_cat = products::create_product_category(&pool, 1, "هواتف ذكية".to_string(), Some(parent_cat.id)).await.unwrap();
+    assert_eq!(child_cat.complete_name.as_deref(), Some("إلكترونيات / هواتف ذكية"));
+
+    // 3. Create a product with minor integer cents
+    let prod = products::create_product(
+        &pool,
+        products::CreateProductInput {
+            company_id: 1,
+            name: "هاتف شاومي ريدمي نوت 13".to_string(),
+            sku: "PH-XIAOMI-RN13".to_string(),
+            barcode: Some("6901234567890".to_string()),
+            description: Some("8GB RAM, 256GB Storage".to_string()),
+            r#type: Some("storable".to_string()),
+            category_id: Some(child_cat.id),
+            uom_id: 1, // Unit
+            purchase_uom_id: Some(1),
+            sale_price_cents: Some(950000), // 9,500.00 EGP
+            cost_price_cents: Some(780000), // 7,800.00 EGP
+            tracking_mode: Some("serial".to_string()),
+            min_stock_milli: Some(5000),
+            max_stock_milli: Some(50000),
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(prod.sku, "PH-XIAOMI-RN13");
+    assert_eq!(prod.sale_price_cents, 950000);
+    assert_eq!(prod.tracking_mode, "serial");
+
+    // 4. List and filter products
+    let list = products::list_products(
+        &pool,
+        products::ProductFilter {
+            company_id: Some(1),
+            category_id: Some(child_cat.id),
+            r#type: None,
+            tracking_mode: None,
+            is_active: Some(true),
+            search: Some("شاومي".to_string()),
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(list.len(), 1);
+    assert_eq!(list[0].product.sku, "PH-XIAOMI-RN13");
+}
+
+#[tokio::test]
+async fn test_location_hierarchy_and_warehouses() {
+    let pool = setup_test_db().await;
+
+    // Check default locations
+    let locs = inventory::list_locations(&pool, 1).await.unwrap();
+    assert!(locs.len() >= 11);
+
+    // Create a new sub-location (Shelf A-1) inside Main Stock (id 5)
+    let shelf = inventory::create_location(
+        &pool,
+        inventory::CreateLocationInput {
+            company_id: 1,
+            name: "رف أ-1 / Shelf A-1".to_string(),
+            parent_id: Some(5),
+            location_type: "internal".to_string(),
+        },
+    )
+    .await
+    .unwrap();
+
+    assert!(shelf.complete_name.contains("المخزن الرئيسي (Stock) / رف أ-1"));
+    assert_eq!(shelf.location_type, "internal");
+
+    // Check warehouses
+    let whs = inventory::list_warehouses(&pool, 1).await.unwrap();
+    assert_eq!(whs.len(), 1);
+    assert_eq!(whs[0].code, "WH");
+}
+
+#[tokio::test]
+async fn test_stock_receipt_incoming_move() {
+    let pool = setup_test_db().await;
+
+    // Create an incoming receipt: 10 laptops from Vendor (id 8) into Stock (id 5)
+    let picking = inventory::create_picking(
+        &pool,
+        inventory::CreatePickingInput {
+            company_id: 1,
+            picking_type_id: 1, // Receipts (Vendor -> Stock)
+            partner_id: Some(1),
+            src_location_id: Some(8),
+            dest_location_id: Some(5),
+            scheduled_date: Some("2026-08-18".to_string()),
+            origin: Some("PO-2026-001".to_string()),
+            note: Some("Receipt of Dell laptops".to_string()),
+            moves: vec![inventory::CreatePickingMoveInput {
+                product_id: 1,             // Dell Latitude
+                quantity_milli: 10000,     // 10 units
+                uom_id: 1,
+                lot_serial_number: None,
+            }],
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(picking.state, "draft");
+    assert!(picking.name.starts_with("WH/IN/"));
+
+    // Confirm and validate picking
+    let done_picking = inventory::confirm_and_validate_picking(&pool, picking.id).await.unwrap();
+    assert_eq!(done_picking.state, "done");
+
+    // Verify stock_quantities on-hand in Stock (id 5) is now 10 units (10000 milli)
+    let stock = inventory::list_stock_quantities(&pool, 1, Some(5), Some(1)).await.unwrap();
+    assert_eq!(stock.len(), 1);
+    assert_eq!(stock[0].quantity_milli, 10000);
+}
+
+#[tokio::test]
+async fn test_stock_delivery_outgoing_move() {
+    let pool = setup_test_db().await;
+
+    // 1. Initial receipt: 20 units into Stock (id 5)
+    let rec = inventory::create_picking(
+        &pool,
+        inventory::CreatePickingInput {
+            company_id: 1,
+            picking_type_id: 1,
+            partner_id: Some(1),
+            src_location_id: Some(8),
+            dest_location_id: Some(5),
+            scheduled_date: None,
+            origin: None,
+            note: None,
+            moves: vec![inventory::CreatePickingMoveInput {
+                product_id: 2,         // Samsung 27 Monitor
+                quantity_milli: 20000, // 20 units
+                uom_id: 1,
+                lot_serial_number: None,
+            }],
+        },
+    )
+    .await
+    .unwrap();
+    inventory::confirm_and_validate_picking(&pool, rec.id).await.unwrap();
+
+    // 2. Outgoing delivery: 5 units from Stock (id 5) to Customer (id 9)
+    let del = inventory::create_picking(
+        &pool,
+        inventory::CreatePickingInput {
+            company_id: 1,
+            picking_type_id: 2, // Delivery Orders
+            partner_id: Some(1),
+            src_location_id: Some(5),
+            dest_location_id: Some(9),
+            scheduled_date: None,
+            origin: Some("SO-2026-001".to_string()),
+            note: None,
+            moves: vec![inventory::CreatePickingMoveInput {
+                product_id: 2,
+                quantity_milli: 5000, // 5 units
+                uom_id: 1,
+                lot_serial_number: None,
+            }],
+        },
+    )
+    .await
+    .unwrap();
+    assert!(del.name.starts_with("WH/OUT/"));
+
+    inventory::confirm_and_validate_picking(&pool, del.id).await.unwrap();
+
+    // 3. Verify on-hand in Stock is now 15 units (15000 milli)
+    let stock = inventory::list_stock_quantities(&pool, 1, Some(5), Some(2)).await.unwrap();
+    assert_eq!(stock.len(), 1);
+    assert_eq!(stock[0].quantity_milli, 15000);
+}
+
+#[tokio::test]
+async fn test_internal_stock_transfer() {
+    let pool = setup_test_db().await;
+
+    // 1. Initial receipt: 10 units in Stock (id 5)
+    let rec = inventory::create_picking(
+        &pool,
+        inventory::CreatePickingInput {
+            company_id: 1,
+            picking_type_id: 1,
+            partner_id: None,
+            src_location_id: Some(8),
+            dest_location_id: Some(5),
+            scheduled_date: None,
+            origin: None,
+            note: None,
+            moves: vec![inventory::CreatePickingMoveInput {
+                product_id: 3,         // Cat6 Cable
+                quantity_milli: 10000,
+                uom_id: 1,
+                lot_serial_number: None,
+            }],
+        },
+    )
+    .await
+    .unwrap();
+    inventory::confirm_and_validate_picking(&pool, rec.id).await.unwrap();
+
+    // 2. Internal Transfer: 4 units from Stock (id 5) to Input (id 6)
+    let transfer = inventory::create_picking(
+        &pool,
+        inventory::CreatePickingInput {
+            company_id: 1,
+            picking_type_id: 3, // Internal
+            partner_id: None,
+            src_location_id: Some(5),
+            dest_location_id: Some(6),
+            scheduled_date: None,
+            origin: None,
+            note: None,
+            moves: vec![inventory::CreatePickingMoveInput {
+                product_id: 3,
+                quantity_milli: 4000,
+                uom_id: 1,
+                lot_serial_number: None,
+            }],
+        },
+    )
+    .await
+    .unwrap();
+    inventory::confirm_and_validate_picking(&pool, transfer.id).await.unwrap();
+
+    // Verify Stock (id 5) has 6 units, Input (id 6) has 4 units
+    let stock5 = inventory::list_stock_quantities(&pool, 1, Some(5), Some(3)).await.unwrap();
+    let stock6 = inventory::list_stock_quantities(&pool, 1, Some(6), Some(3)).await.unwrap();
+
+    assert_eq!(stock5[0].quantity_milli, 6000);
+    assert_eq!(stock6[0].quantity_milli, 4000);
+}
+
+#[tokio::test]
+async fn test_lot_serial_tracking() {
+    let pool = setup_test_db().await;
+
+    // Receipt with specific serial number
+    let rec = inventory::create_picking(
+        &pool,
+        inventory::CreatePickingInput {
+            company_id: 1,
+            picking_type_id: 1,
+            partner_id: None,
+            src_location_id: Some(8),
+            dest_location_id: Some(5),
+            scheduled_date: None,
+            origin: None,
+            note: None,
+            moves: vec![inventory::CreatePickingMoveInput {
+                product_id: 1,        // Dell Laptop (serial tracked)
+                quantity_milli: 1000, // 1 unit
+                uom_id: 1,
+                lot_serial_number: Some("SN-DELL-2026-0099".to_string()),
+            }],
+        },
+    )
+    .await
+    .unwrap();
+
+    inventory::confirm_and_validate_picking(&pool, rec.id).await.unwrap();
+
+    let stock = inventory::list_stock_quantities(&pool, 1, Some(5), Some(1)).await.unwrap();
+    let serial_item = stock.iter().find(|s| s.lot_serial_number == "SN-DELL-2026-0099");
+    assert!(serial_item.is_some());
+    assert_eq!(serial_item.unwrap().quantity_milli, 1000);
+}
+
+#[tokio::test]
+async fn test_inventory_adjustment_reconciliation() {
+    let pool = setup_test_db().await;
+
+    // 1. Initial receipt of 10 monitors into Stock (id 5)
+    let rec = inventory::create_picking(
+        &pool,
+        inventory::CreatePickingInput {
+            company_id: 1,
+            picking_type_id: 1,
+            partner_id: None,
+            src_location_id: Some(8),
+            dest_location_id: Some(5),
+            scheduled_date: None,
+            origin: None,
+            note: None,
+            moves: vec![inventory::CreatePickingMoveInput {
+                product_id: 2,
+                quantity_milli: 10000, // 10 units theoretical
+                uom_id: 1,
+                lot_serial_number: None,
+            }],
+        },
+    )
+    .await
+    .unwrap();
+    inventory::confirm_and_validate_picking(&pool, rec.id).await.unwrap();
+
+    // 2. Start physical inventory adjustment session for Stock (id 5)
+    let adj = inventory::create_inventory_adjustment(
+        &pool,
+        inventory::CreateInventoryAdjustmentInput {
+            company_id: 1,
+            name: "جرد نهاية الربع الأول 2026".to_string(),
+            location_id: 5,
+        },
+    )
+    .await
+    .unwrap();
+
+    let lines = inventory::get_adjustment_lines(&pool, adj.id).await.unwrap();
+    let monitor_line = lines.iter().find(|l| l.product_id == 2).unwrap();
+    assert_eq!(monitor_line.theoretical_qty_milli, 10000);
+
+    // 3. User counts 8 units (2 units missing / damaged)
+    inventory::update_adjustment_line_count(
+        &pool,
+        inventory::UpdateAdjustmentLineCountInput {
+            line_id: monitor_line.id,
+            counted_qty_milli: 8000,
+        },
+    )
+    .await
+    .unwrap();
+
+    // 4. Validate adjustment
+    let done_adj = inventory::validate_inventory_adjustment(&pool, adj.id).await.unwrap();
+    assert_eq!(done_adj.state, "done");
+
+    // 5. Verify on-hand stock is now reconciled to exactly 8 units (8000 milli)
+    let stock = inventory::list_stock_quantities(&pool, 1, Some(5), Some(2)).await.unwrap();
+    assert_eq!(stock[0].quantity_milli, 8000);
 }

@@ -12,7 +12,7 @@ import {
   X,
   Send,
 } from 'lucide-react';
-import { Partner, PartnerSubType, CreatePartnerInput, ActivityLog } from '../../types';
+import { Partner, PartnerSubType, ActivityLog } from '../../types';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 import { formatCurrency } from '../../lib/utils';
@@ -140,10 +140,9 @@ export const PartnersView: React.FC = () => {
         await api.updatePartner({
           id: editingPartner.id,
           company_id: activeCompanyId,
-          parent_id: null,
           name: formData.name,
           sub_type: formData.sub_type,
-          is_company: formData.is_company,
+          is_company: formData.is_company ? 1 : 0,
           email: formData.email || null,
           phone: formData.phone || null,
           mobile: formData.mobile || null,
@@ -158,7 +157,7 @@ export const PartnersView: React.FC = () => {
           is_active: 1,
         });
       } else {
-        const input: CreatePartnerInput = {
+        await api.createPartner({
           company_id: activeCompanyId,
           parent_id: null,
           name: formData.name,
@@ -175,8 +174,7 @@ export const PartnersView: React.FC = () => {
           country: formData.country,
           credit_limit_cents: creditCents,
           notes: formData.notes || null,
-        };
-        await api.createPartner(input);
+        });
       }
 
       setIsModalOpen(false);
@@ -200,7 +198,7 @@ export const PartnersView: React.FC = () => {
   const openChatter = async (partner: Partner) => {
     setSelectedPartnerForChatter(partner);
     try {
-      const logs = await api.getEntityActivities('partner', partner.id);
+      const logs = await api.getEntityActivities(activeCompanyId, 'partner', partner.id);
       setActivities(logs);
     } catch (err) {
       console.error('Failed to fetch activities:', err);

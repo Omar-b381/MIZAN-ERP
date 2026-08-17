@@ -14,6 +14,9 @@ import {
   Landmark,
   UserCheck,
   Lock,
+  ArrowLeftRight,
+  ClipboardCheck,
+  FolderTree,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { ModuleRecord } from '../../types';
@@ -35,83 +38,115 @@ export const Sidebar: React.FC<SidebarProps> = ({ modules }) => {
   const coreNavItems = [
     {
       id: 'dashboard',
-      label: t('nav.dashboard'),
+      label: t('nav.dashboard', 'لوحة التحكم'),
       icon: LayoutDashboard,
       view: 'dashboard',
       permission: null,
     },
     {
       id: 'contacts',
-      label: t('nav.contacts'),
+      label: t('nav.contacts', 'جهات الاتصال'),
       icon: Users2,
       view: 'contacts',
       permission: 'contacts.view',
     },
     {
       id: 'companies',
-      label: t('nav.companies'),
+      label: t('nav.companies', 'الشركات والفروع'),
       icon: Building2,
       view: 'companies',
       permission: 'core.companies.view',
     },
     {
       id: 'users',
-      label: t('nav.users'),
+      label: t('nav.users', 'المستخدمون والصلاحيات'),
       icon: ShieldCheck,
       view: 'users',
       permission: 'core.users.view',
     },
     {
       id: 'modules',
-      label: t('nav.modules'),
+      label: t('nav.modules', 'إدارة الوحدات'),
       icon: Boxes,
       view: 'modules',
       permission: 'core.modules.manage',
     },
     {
       id: 'activity',
-      label: t('nav.activity'),
+      label: t('nav.activity', 'سجل النشاط'),
       icon: History,
       view: 'activity',
       permission: null,
     },
     {
       id: 'settings',
-      label: t('nav.settings'),
+      label: t('nav.settings', 'الإعدادات'),
       icon: Settings,
       view: 'settings',
       permission: 'core.settings.view',
     },
   ];
 
+  const inventoryNavItems = [
+    {
+      id: 'products',
+      label: t('nav.products', 'كتالوج المنتجات'),
+      icon: Package,
+      view: 'products',
+      permission: 'products.view',
+    },
+    {
+      id: 'inventory_stock',
+      label: t('nav.inventoryStock', 'أرصدة المخزون'),
+      icon: Boxes,
+      view: 'inventory_stock',
+      permission: 'inventory.view',
+    },
+    {
+      id: 'transfers',
+      label: t('nav.transfers', 'حركات وعمليات المخزن'),
+      icon: ArrowLeftRight,
+      view: 'transfers',
+      permission: 'inventory.manage',
+    },
+    {
+      id: 'adjustments',
+      label: t('nav.adjustments', 'تسويات وجرد المخزون'),
+      icon: ClipboardCheck,
+      view: 'adjustments',
+      permission: 'inventory.adjust',
+    },
+    {
+      id: 'locations',
+      label: t('nav.locations', 'شجرة المواقع والمستودعات'),
+      icon: FolderTree,
+      view: 'locations',
+      permission: 'inventory.manage',
+    },
+  ];
+
   const modularFeatures = [
     {
       key: 'sales',
-      label: t('nav.sales'),
+      label: t('nav.sales', 'المبيعات'),
       icon: ShoppingCart,
       view: 'sales',
     },
     {
       key: 'purchases',
-      label: t('nav.purchases'),
+      label: t('nav.purchases', 'المشتريات'),
       icon: ShoppingBag,
       view: 'purchases',
     },
     {
-      key: 'inventory',
-      label: t('nav.inventory'),
-      icon: Package,
-      view: 'inventory',
-    },
-    {
       key: 'accounting',
-      label: t('nav.accounting'),
+      label: t('nav.accounting', 'الحسابات العامة'),
       icon: Landmark,
       view: 'accounting',
     },
     {
       key: 'employees',
-      label: t('nav.hr'),
+      label: t('nav.hr', 'الموارد البشرية'),
       icon: UserCheck,
       view: 'hr',
     },
@@ -123,7 +158,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ modules }) => {
         {/* Core System Navigation */}
         <div className="space-y-1">
           <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-            {t('modules.core')}
+            {t('modules.core', 'النواة الأساسية')}
           </div>
           {coreNavItems.map((item) => {
             if (item.permission && !hasPermission(item.permission)) {
@@ -149,10 +184,42 @@ export const Sidebar: React.FC<SidebarProps> = ({ modules }) => {
           })}
         </div>
 
-        {/* Business Modules (Dynamic / Modular) */}
+        {/* Products & Inventory Section (Active in Phase 2) */}
+        {(isModuleActive('products') || isModuleActive('inventory')) && (
+          <div className="space-y-1 pt-2 border-t border-border/60">
+            <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+              <span>{t('modules.inventorySection', 'المخزون والمنتجات')}</span>
+              <span className="text-[10px] text-emerald-600 font-semibold">نشط</span>
+            </div>
+            {inventoryNavItems.map((item) => {
+              if (item.permission && !hasPermission(item.permission)) {
+                return null;
+              }
+              const Icon = item.icon;
+              const isActive = activeView === item.view;
+
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveView(item.view)}
+                  className={`w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-foreground/80 hover:bg-secondary hover:text-foreground'
+                  }`}
+                >
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-primary-foreground' : 'text-primary'}`} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Future Business Modules */}
         <div className="space-y-1 pt-2 border-t border-border/60">
           <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-            <span>{t('modules.title')}</span>
+            <span>{t('modules.title', 'الوحدات البرمجية')}</span>
             <span className="text-[10px] text-muted-foreground/80">§ Modular</span>
           </div>
 
@@ -178,7 +245,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ modules }) => {
                 {!active && (
                   <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">
                     <Lock className="w-2.5 h-2.5" />
-                    {t('modules.inactive')}
+                    {t('modules.inactive', 'غير نشط')}
                   </span>
                 )}
               </button>
@@ -190,7 +257,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ modules }) => {
       {/* Footer Info */}
       <div className="p-4 border-t border-border/40 text-center">
         <p className="text-[11px] text-muted-foreground font-medium">
-          Mizan ERP v0.1 • Phase 1
+          Mizan ERP v0.2 • Phase 2
         </p>
       </div>
     </aside>

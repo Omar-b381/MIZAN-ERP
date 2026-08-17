@@ -12,6 +12,11 @@ import { UsersView } from './components/users/UsersView';
 import { ModuleManagerView } from './components/modules/ModuleManagerView';
 import { SettingsView } from './components/settings/SettingsView';
 import { ActivityLogView } from './components/activity/ActivityLogView';
+import { ProductsView } from './components/products/ProductsView';
+import { InventoryStockView } from './components/inventory/InventoryStockView';
+import { TransfersView } from './components/inventory/TransfersView';
+import { InventoryAdjustmentsView } from './components/inventory/InventoryAdjustmentsView';
+import { LocationsView } from './components/inventory/LocationsView';
 
 export function App() {
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -57,6 +62,16 @@ export function App() {
         return <SettingsView />;
       case 'activity':
         return <ActivityLogView />;
+      case 'products':
+        return <ProductsView />;
+      case 'inventory_stock':
+        return <InventoryStockView />;
+      case 'transfers':
+        return <TransfersView />;
+      case 'adjustments':
+        return <InventoryAdjustmentsView />;
+      case 'locations':
+        return <LocationsView />;
       default:
         return <DashboardOverview modules={modules} />;
     }
