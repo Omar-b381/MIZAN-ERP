@@ -44,6 +44,19 @@ import {
   CreateInvoiceInput,
   CreateJournalEntryInput,
   CreatePaymentInput,
+  Department,
+  JobPosition,
+  Employee,
+  Contract,
+  LeaveRequest,
+  AttendanceRecord,
+  CreateDepartmentInput,
+  CreateJobInput,
+  CreateEmployeeInput,
+  UpdateEmployeeInput,
+  CreateContractInput,
+  CreateLeaveInput,
+  RecordAttendanceInput,
 } from '../types';
 
 let mockModules: ModuleRecord[] = [
@@ -570,6 +583,157 @@ let mockMoveLines: AccountMoveLine[] = [
 ];
 
 let mockPayments: AccountPayment[] = [];
+
+let mockDepartments: Department[] = [
+  { id: 1, company_id: 1, name: 'الإدارة العامة والمكتب التنفيذي', parent_id: null, manager_id: null, created_at: new Date().toISOString() },
+  { id: 2, company_id: 1, name: 'إدارة تكنولوجيا المعلومات والهندسة', parent_id: 1, manager_id: 1, created_at: new Date().toISOString() },
+  { id: 3, company_id: 1, name: 'إدارة المبيعات والتسويق', parent_id: 1, manager_id: 2, created_at: new Date().toISOString() },
+  { id: 4, company_id: 1, name: 'إدارة الحسابات والمالية', parent_id: 1, manager_id: 3, created_at: new Date().toISOString() },
+];
+
+let mockJobs: JobPosition[] = [
+  { id: 1, company_id: 1, name: 'كبير مهندسي البرمجيات (Lead Engineer)', department_id: 2, department_name: 'إدارة تكنولوجيا المعلومات والهندسة', expected_employees: 2, created_at: new Date().toISOString() },
+  { id: 2, company_id: 1, name: 'مدير مبيعات أول (Senior Sales Exec)', department_id: 3, department_name: 'إدارة المبيعات والتسويق', expected_employees: 3, created_at: new Date().toISOString() },
+  { id: 3, company_id: 1, name: 'محاسب مالي أول (Senior Accountant)', department_id: 4, department_name: 'إدارة الحسابات والمالية', expected_employees: 2, created_at: new Date().toISOString() },
+];
+
+let mockEmployees: Employee[] = [
+  {
+    id: 1,
+    company_id: 1,
+    partner_id: null,
+    name: 'أحمد محمود القاضي',
+    work_email: 'ahmed.kadi@mizan.local',
+    work_phone: '+201011122233',
+    department_id: 2,
+    department_name: 'إدارة تكنولوجيا المعلومات والهندسة',
+    job_id: 1,
+    job_name: 'كبير مهندسي البرمجيات (Lead Engineer)',
+    manager_id: null,
+    manager_name: null,
+    hire_date: '2025-01-01',
+    national_id: '29001011234567',
+    status: 'active',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 2,
+    company_id: 1,
+    partner_id: null,
+    name: 'سارة إبراهيم حسن',
+    work_email: 'sara.hassan@mizan.local',
+    work_phone: '+201022233344',
+    department_id: 3,
+    department_name: 'إدارة المبيعات والتسويق',
+    job_id: 2,
+    job_name: 'مدير مبيعات أول (Senior Sales Exec)',
+    manager_id: 1,
+    manager_name: 'أحمد محمود القاضي',
+    hire_date: '2025-03-15',
+    national_id: '29205151234568',
+    status: 'active',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 3,
+    company_id: 1,
+    partner_id: null,
+    name: 'محمد طارق عبد الله',
+    work_email: 'm.tarek@mizan.local',
+    work_phone: '+201033344455',
+    department_id: 4,
+    department_name: 'إدارة الحسابات والمالية',
+    job_id: 3,
+    job_name: 'محاسب مالي أول (Senior Accountant)',
+    manager_id: 1,
+    manager_name: 'أحمد محمود القاضي',
+    hire_date: '2025-06-01',
+    national_id: '29408201234569',
+    status: 'active',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+];
+
+let mockContracts: Contract[] = [
+  {
+    id: 1,
+    company_id: 1,
+    employee_id: 1,
+    employee_name: 'أحمد محمود القاضي',
+    name: 'CON/2026/00001',
+    wage_cents: 3500000,
+    date_start: '2025-01-01',
+    date_end: null,
+    state: 'open',
+    working_hours_per_week: 40,
+    notes: 'عقد عمل بدوام كامل - راتب شهري 35,000 ج.م',
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 2,
+    company_id: 1,
+    employee_id: 2,
+    employee_name: 'سارة إبراهيم حسن',
+    name: 'CON/2026/00002',
+    wage_cents: 2500000,
+    date_start: '2025-03-15',
+    date_end: null,
+    state: 'open',
+    working_hours_per_week: 40,
+    notes: 'عقد عمل بدوام كامل - راتب شهري 25,000 ج.م + عمولة',
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 3,
+    company_id: 1,
+    employee_id: 3,
+    employee_name: 'محمد طارق عبد الله',
+    name: 'CON/2026/00003',
+    wage_cents: 2000000,
+    date_start: '2025-06-01',
+    date_end: null,
+    state: 'open',
+    working_hours_per_week: 40,
+    notes: 'عقد عمل بدوام كامل - راتب شهري 20,000 ج.م',
+    created_at: new Date().toISOString(),
+  },
+];
+
+let mockLeaves: LeaveRequest[] = [
+  {
+    id: 1,
+    company_id: 1,
+    employee_id: 1,
+    employee_name: 'أحمد محمود القاضي',
+    leave_type: 'annual',
+    date_from: '2026-09-01',
+    date_to: '2026-09-05',
+    duration_days_milli: 5000,
+    state: 'validate',
+    reason: 'إجازة سنوية اعتيادية',
+    approved_by_id: 1,
+    created_at: new Date().toISOString(),
+  },
+];
+
+let mockAttendances: AttendanceRecord[] = [
+  {
+    id: 1,
+    company_id: 1,
+    employee_id: 1,
+    employee_name: 'أحمد محمود القاضي',
+    date: new Date().toISOString().split('T')[0],
+    check_in: `${new Date().toISOString().split('T')[0]} 09:00:00`,
+    check_out: `${new Date().toISOString().split('T')[0]} 17:00:00`,
+    worked_hours_milli: 8000,
+    status: 'present',
+    notes: 'حضور مكتمل 8 ساعات',
+    created_at: new Date().toISOString(),
+  },
+];
 
 let mockActivities: ActivityLog[] = [
   {
@@ -1708,6 +1872,227 @@ async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Prom
       });
       return tb as unknown as T;
     }
+
+    // Phase 6: Human Resources (HR) Mocks
+    case 'cmd_list_departments':
+    case 'list_departments': {
+      return [...mockDepartments] as unknown as T;
+    }
+    case 'cmd_create_department':
+    case 'create_department': {
+      const input = args?.input as CreateDepartmentInput;
+      const newDept: Department = {
+        id: mockDepartments.length + 1,
+        company_id: input.company_id,
+        name: input.name,
+        parent_id: input.parent_id || null,
+        manager_id: input.manager_id || null,
+        created_at: new Date().toISOString(),
+      };
+      mockDepartments.push(newDept);
+      return newDept as unknown as T;
+    }
+    case 'cmd_list_jobs':
+    case 'list_jobs': {
+      return [...mockJobs] as unknown as T;
+    }
+    case 'cmd_create_job':
+    case 'create_job': {
+      const input = args?.input as CreateJobInput;
+      const dept = mockDepartments.find((d) => d.id === input.department_id);
+      const newJob: JobPosition = {
+        id: mockJobs.length + 1,
+        company_id: input.company_id,
+        name: input.name,
+        department_id: input.department_id || null,
+        department_name: dept?.name || null,
+        expected_employees: input.expected_employees || 1,
+        created_at: new Date().toISOString(),
+      };
+      mockJobs.push(newJob);
+      return newJob as unknown as T;
+    }
+    case 'cmd_list_employees':
+    case 'list_employees': {
+      const did = args?.department_id as number | undefined;
+      const sf = args?.status_filter as string | undefined;
+      let res = [...mockEmployees];
+      if (did) res = res.filter((e) => e.department_id === did);
+      if (sf && sf !== 'all') res = res.filter((e) => e.status === sf);
+      return res as unknown as T;
+    }
+    case 'cmd_get_employee':
+    case 'get_employee': {
+      const eid = args?.employee_id as number;
+      const emp = mockEmployees.find((e) => e.id === eid) || null;
+      return emp as unknown as T;
+    }
+    case 'cmd_create_employee':
+    case 'create_employee': {
+      const input = args?.input as CreateEmployeeInput;
+      const dept = mockDepartments.find((d) => d.id === input.department_id);
+      const job = mockJobs.find((j) => j.id === input.job_id);
+      const mgr = mockEmployees.find((m) => m.id === input.manager_id);
+
+      const newEmp: Employee = {
+        id: mockEmployees.length + 1,
+        company_id: input.company_id,
+        partner_id: null,
+        name: input.name,
+        work_email: input.work_email || null,
+        work_phone: input.work_phone || null,
+        department_id: input.department_id || null,
+        department_name: dept?.name || null,
+        job_id: input.job_id || null,
+        job_name: job?.name || null,
+        manager_id: input.manager_id || null,
+        manager_name: mgr?.name || null,
+        hire_date: input.hire_date || new Date().toISOString().split('T')[0],
+        national_id: input.national_id || null,
+        status: 'active',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      mockEmployees.push(newEmp);
+      return newEmp as unknown as T;
+    }
+    case 'cmd_update_employee':
+    case 'update_employee': {
+      const input = args?.input as UpdateEmployeeInput;
+      const emp = mockEmployees.find((e) => e.id === input.id);
+      if (!emp) throw new Error('Employee not found');
+
+      const dept = mockDepartments.find((d) => d.id === input.department_id);
+      const job = mockJobs.find((j) => j.id === input.job_id);
+      const mgr = mockEmployees.find((m) => m.id === input.manager_id);
+
+      emp.name = input.name;
+      emp.work_email = input.work_email || null;
+      emp.work_phone = input.work_phone || null;
+      emp.department_id = input.department_id || null;
+      emp.department_name = dept?.name || null;
+      emp.job_id = input.job_id || null;
+      emp.job_name = job?.name || null;
+      emp.manager_id = input.manager_id || null;
+      emp.manager_name = mgr?.name || null;
+      if (input.hire_date) emp.hire_date = input.hire_date;
+      emp.national_id = input.national_id || null;
+      if (input.status) emp.status = input.status as any;
+      emp.updated_at = new Date().toISOString();
+
+      return emp as unknown as T;
+    }
+    case 'cmd_delete_employee':
+    case 'delete_employee': {
+      const eid = args?.employee_id as number;
+      mockEmployees = mockEmployees.filter((e) => e.id !== eid);
+      return undefined as unknown as T;
+    }
+    case 'cmd_list_contracts':
+    case 'list_contracts': {
+      const eid = args?.employee_id as number | undefined;
+      let res = [...mockContracts];
+      if (eid) res = res.filter((c) => c.employee_id === eid);
+      return res as unknown as T;
+    }
+    case 'cmd_create_contract':
+    case 'create_contract': {
+      const input = args?.input as CreateContractInput;
+      const emp = mockEmployees.find((e) => e.id === input.employee_id);
+      const newId = mockContracts.length + 1;
+      const newCon: Contract = {
+        id: newId,
+        company_id: input.company_id,
+        employee_id: input.employee_id,
+        employee_name: emp?.name || null,
+        name: `CON/2026/${String(newId).padStart(5, '0')}`,
+        wage_cents: input.wage_cents,
+        date_start: input.date_start || new Date().toISOString().split('T')[0],
+        date_end: input.date_end || null,
+        state: 'open',
+        working_hours_per_week: input.working_hours_per_week || 40,
+        notes: input.notes || null,
+        created_at: new Date().toISOString(),
+      };
+      mockContracts.push(newCon);
+      return newCon as unknown as T;
+    }
+    case 'cmd_list_leaves':
+    case 'list_leaves': {
+      const eid = args?.employee_id as number | undefined;
+      const sf = args?.state_filter as string | undefined;
+      let res = [...mockLeaves];
+      if (eid) res = res.filter((l) => l.employee_id === eid);
+      if (sf && sf !== 'all') res = res.filter((l) => l.state === sf);
+      return res as unknown as T;
+    }
+    case 'cmd_create_leave':
+    case 'create_leave': {
+      const input = args?.input as CreateLeaveInput;
+      const emp = mockEmployees.find((e) => e.id === input.employee_id);
+      const newLeave: LeaveRequest = {
+        id: mockLeaves.length + 1,
+        company_id: input.company_id,
+        employee_id: input.employee_id,
+        employee_name: emp?.name || null,
+        leave_type: input.leave_type,
+        date_from: input.date_from,
+        date_to: input.date_to,
+        duration_days_milli: input.duration_days_milli,
+        state: 'confirm',
+        reason: input.reason || null,
+        approved_by_id: null,
+        created_at: new Date().toISOString(),
+      };
+      mockLeaves.push(newLeave);
+      return newLeave as unknown as T;
+    }
+    case 'cmd_validate_leave':
+    case 'validate_leave': {
+      const lid = args?.leave_id as number;
+      const leave = mockLeaves.find((l) => l.id === lid);
+      if (!leave) throw new Error('Leave not found');
+      leave.state = 'validate';
+      leave.approved_by_id = (args?.approved_by_id as number) || 1;
+      return leave as unknown as T;
+    }
+    case 'cmd_refuse_leave':
+    case 'refuse_leave': {
+      const lid = args?.leave_id as number;
+      const leave = mockLeaves.find((l) => l.id === lid);
+      if (!leave) throw new Error('Leave not found');
+      leave.state = 'refuse';
+      return leave as unknown as T;
+    }
+    case 'cmd_list_attendances':
+    case 'list_attendances': {
+      const eid = args?.employee_id as number | undefined;
+      const df = args?.date_filter as string | undefined;
+      let res = [...mockAttendances];
+      if (eid) res = res.filter((a) => a.employee_id === eid);
+      if (df) res = res.filter((a) => a.date === df);
+      return res as unknown as T;
+    }
+    case 'cmd_record_attendance':
+    case 'record_attendance': {
+      const input = args?.input as RecordAttendanceInput;
+      const emp = mockEmployees.find((e) => e.id === input.employee_id);
+      const newAtt: AttendanceRecord = {
+        id: mockAttendances.length + 1,
+        company_id: input.company_id,
+        employee_id: input.employee_id,
+        employee_name: emp?.name || null,
+        date: input.date || new Date().toISOString().split('T')[0],
+        check_in: input.check_in,
+        check_out: input.check_out || null,
+        worked_hours_milli: 8000,
+        status: 'present',
+        notes: input.notes || null,
+        created_at: new Date().toISOString(),
+      };
+      mockAttendances.push(newAtt);
+      return newAtt as unknown as T;
+    }
     default:
       throw new Error(`Command ${cmd} not implemented in mock`);
   }
@@ -1806,4 +2191,29 @@ export const api = {
   listPayments: (company_id: number, partner_id?: number) => invokeTauri<AccountPayment[]>('cmd_list_payments', { company_id, partner_id }),
   createAndPostPayment: (input: CreatePaymentInput) => invokeTauri<AccountPayment>('cmd_create_and_post_payment', { input }),
   getTrialBalance: (company_id: number) => invokeTauri<TrialBalanceRow[]>('cmd_get_trial_balance', { company_id }),
+
+  // Phase 6: Human Resources (HR)
+  listDepartments: (company_id: number) => invokeTauri<Department[]>('cmd_list_departments', { company_id }),
+  createDepartment: (input: CreateDepartmentInput) => invokeTauri<Department>('cmd_create_department', { input }),
+  listJobs: (company_id: number) => invokeTauri<JobPosition[]>('cmd_list_jobs', { company_id }),
+  createJob: (input: CreateJobInput) => invokeTauri<JobPosition>('cmd_create_job', { input }),
+  listEmployees: (company_id: number, department_id?: number, status_filter?: string) =>
+    invokeTauri<Employee[]>('cmd_list_employees', { company_id, department_id, status_filter }),
+  getEmployee: (employee_id: number) => invokeTauri<Employee | null>('cmd_get_employee', { employee_id }),
+  createEmployee: (input: CreateEmployeeInput) => invokeTauri<Employee>('cmd_create_employee', { input }),
+  updateEmployee: (input: UpdateEmployeeInput) => invokeTauri<Employee>('cmd_update_employee', { input }),
+  deleteEmployee: (employee_id: number) => invokeTauri<void>('cmd_delete_employee', { employee_id }),
+  listContracts: (company_id: number, employee_id?: number) =>
+    invokeTauri<Contract[]>('cmd_list_contracts', { company_id, employee_id }),
+  createContract: (input: CreateContractInput) => invokeTauri<Contract>('cmd_create_contract', { input }),
+  listLeaves: (company_id: number, employee_id?: number, state_filter?: string) =>
+    invokeTauri<LeaveRequest[]>('cmd_list_leaves', { company_id, employee_id, state_filter }),
+  createLeave: (input: CreateLeaveInput) => invokeTauri<LeaveRequest>('cmd_create_leave', { input }),
+  validateLeave: (leave_id: number, approved_by_id: number) =>
+    invokeTauri<LeaveRequest>('cmd_validate_leave', { leave_id, approved_by_id }),
+  refuseLeave: (leave_id: number) => invokeTauri<LeaveRequest>('cmd_refuse_leave', { leave_id }),
+  listAttendances: (company_id: number, employee_id?: number, date_filter?: string) =>
+    invokeTauri<AttendanceRecord[]>('cmd_list_attendances', { company_id, employee_id, date_filter }),
+  recordAttendance: (input: RecordAttendanceInput) =>
+    invokeTauri<AttendanceRecord>('cmd_record_attendance', { input }),
 };

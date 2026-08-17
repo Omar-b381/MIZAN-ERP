@@ -249,6 +249,18 @@
     "title": "Payment Vouchers & Receipts",
     "subtitle": "Customer Inbound Receipts, Vendor Outbound Payments, and Automated Cash/Bank moves"
   },
+  "hr": {
+    "title": "Employee Directory & Organization",
+    "subtitle": "Manage employee records, departments, job titles, and employment contracts"
+  },
+  "leaves": {
+    "title": "Time-Off & Leave Requests",
+    "subtitle": "Submit and approve annual, sick, and emergency leaves"
+  },
+  "attendance": {
+    "title": "Daily Attendance & Timesheets",
+    "subtitle": "Track check-in/out times, calculate worked hours, and monitor punctuality"
+  },
   "common": {
     "save": "Save Changes",
     "cancel": "Cancel",

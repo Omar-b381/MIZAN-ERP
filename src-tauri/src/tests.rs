@@ -1,5 +1,5 @@
 use crate::{
-    accounting, activity, auth, companies, db, inventory, modules, partners, products, purchases, rbac, sales, settings,
+    accounting, activity, auth, companies, db, hr, inventory, modules, partners, products, purchases, rbac, sales, settings,
 };
 use sqlx::SqlitePool;
 
@@ -694,7 +694,7 @@ async fn test_sales_order_confirmation_and_delivery_trigger() {
     let moves = inventory::get_picking_moves(&pool, picking_id).await.unwrap();
     assert_eq!(moves.len(), 1);
     assert_eq!(moves[0].product_id, 1);
-    assert_eq!(moves[0].product_uom_qty_milli, 3000);
+    assert_eq!(moves[0].quantity_milli, 3000);
 }
 
 #[tokio::test]
@@ -830,7 +830,7 @@ async fn test_purchase_order_confirmation_and_receipt_trigger() {
     let moves = inventory::get_picking_moves(&pool, picking_id).await.unwrap();
     assert_eq!(moves.len(), 1);
     assert_eq!(moves[0].product_id, 1);
-    assert_eq!(moves[0].product_uom_qty_milli, 4000);
+    assert_eq!(moves[0].quantity_milli, 4000);
 }
 
 #[tokio::test]
@@ -1074,3 +1074,163 @@ async fn test_trial_balance_generation() {
     // Sum of all debits must equal sum of all credits in trial balance
     assert_eq!(total_debits, total_credits);
 }
+
+#[tokio::test]
+async fn test_hr_departments_and_jobs_creation() {
+    let pool = setup_test_db().await;
+
+    // 1. Verify seeded departments
+    let depts = hr::list_departments(&pool, 1).await.unwrap();
+    assert!(depts.len() >= 4);
+
+    // 2. Create sub-department
+    let new_dept = hr::create_department(
+        &pool,
+        hr::CreateDepartmentInput {
+            company_id: 1,
+            name: "قسم ضمان الجودة (QA)".to_string(),
+            parent_id: Some(2), // Under IT
+            manager_id: None,
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(new_dept.parent_id, Some(2));
+
+    // 3. Create job position
+    let job = hr::create_job(
+        &pool,
+        hr::CreateJobInput {
+            company_id: 1,
+            name: "مهندس جودة برمجيات (QA Engineer)".to_string(),
+            department_id: Some(new_dept.id),
+            expected_employees: Some(2),
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(job.department_id, Some(new_dept.id));
+}
+
+#[tokio::test]
+async fn test_hr_employee_lifecycle_and_contract() {
+    let pool = setup_test_db().await;
+
+    // 1. Create new employee
+    let emp = hr::create_employee(
+        &pool,
+        hr::CreateEmployeeInput {
+            company_id: 1,
+            name: "خالد سعيد حسان".to_string(),
+            work_email: Some("khaled.saeed@mizan.local".to_string()),
+            work_phone: Some("+201099887766".to_string()),
+            department_id: Some(2),
+            job_id: Some(1),
+            manager_id: Some(1),
+            hire_date: Some("2026-08-01".to_string()),
+            national_id: Some("29505051234567".to_string()),
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(emp.status, "active");
+
+    // 2. Create employment contract (30,000 EGP = 3,000,000 cents)
+    let contract = hr::create_contract(
+        &pool,
+        hr::CreateContractInput {
+            company_id: 1,
+            employee_id: emp.id,
+            wage_cents: 3000000,
+            date_start: Some("2026-08-01".to_string()),
+            date_end: None,
+            working_hours_per_week: Some(40),
+            notes: Some("عقد دوام كامل".to_string()),
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(contract.state, "open");
+    assert_eq!(contract.wage_cents, 3000000);
+
+    // 3. Update employee
+    let updated = hr::update_employee(
+        &pool,
+        hr::UpdateEmployeeInput {
+            id: emp.id,
+            name: "خالد سعيد حسان - مدير تقني".to_string(),
+            work_email: emp.work_email,
+            work_phone: emp.work_phone,
+            department_id: emp.department_id,
+            job_id: emp.job_id,
+            manager_id: emp.manager_id,
+            hire_date: Some(emp.hire_date),
+            national_id: emp.national_id,
+            status: Some("active".to_string()),
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(updated.name, "خالد سعيد حسان - مدير تقني");
+}
+
+#[tokio::test]
+async fn test_hr_leave_request_and_approval_workflow() {
+    let pool = setup_test_db().await;
+
+    // 1. Submit leave request
+    let leave = hr::create_leave(
+        &pool,
+        hr::CreateLeaveInput {
+            company_id: 1,
+            employee_id: 2,
+            leave_type: "annual".to_string(),
+            date_from: "2026-10-01".to_string(),
+            date_to: "2026-10-05".to_string(),
+            duration_days_milli: 5000, // 5 days
+            reason: Some("إجازة سنوية".to_string()),
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(leave.state, "confirm");
+
+    // 2. Validate / Approve leave
+    let validated = hr::validate_leave(&pool, leave.id, 1).await.unwrap();
+    assert_eq!(validated.state, "validate");
+    assert_eq!(validated.approved_by_id, Some(1));
+
+    // 3. Refuse leave
+    let refused = hr::refuse_leave(&pool, leave.id).await.unwrap();
+    assert_eq!(refused.state, "refuse");
+}
+
+#[tokio::test]
+async fn test_hr_attendance_recording_and_worked_hours_calculation() {
+    let pool = setup_test_db().await;
+
+    // Record attendance with check-in 09:00:00 and check-out 17:30:00 (8.5 hrs = 510 mins = 8500 milli-hours)
+    let att = hr::record_attendance(
+        &pool,
+        hr::RecordAttendanceInput {
+            company_id: 1,
+            employee_id: 1,
+            date: Some("2026-08-17".to_string()),
+            check_in: "2026-08-17 09:00:00".to_string(),
+            check_out: Some("2026-08-17 17:30:00".to_string()),
+            notes: Some("يوم عمل مكتمل مع نصف ساعة إضافية".to_string()),
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(att.status, "present");
+    assert_eq!(att.worked_hours_milli, 8500);
+}
+

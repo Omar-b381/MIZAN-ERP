@@ -22,6 +22,9 @@ import { PurchasesOrdersView } from './components/purchases/PurchasesOrdersView'
 import { InvoicesView } from './components/accounting/InvoicesView';
 import { JournalEntriesView } from './components/accounting/JournalEntriesView';
 import { PaymentsView } from './components/accounting/PaymentsView';
+import { EmployeesView } from './components/hr/EmployeesView';
+import { LeavesView } from './components/hr/LeavesView';
+import { AttendanceView } from './components/hr/AttendanceView';
 
 export function App() {
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -88,6 +91,13 @@ export function App() {
         return <JournalEntriesView />;
       case 'payments':
         return <PaymentsView />;
+      case 'employees':
+      case 'hr':
+        return <EmployeesView />;
+      case 'leaves':
+        return <LeavesView />;
+      case 'attendance':
+        return <AttendanceView />;
       default:
         return <DashboardOverview modules={modules} />;
     }

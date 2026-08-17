@@ -4,6 +4,7 @@ pub mod auth;
 pub mod commands;
 pub mod companies;
 pub mod db;
+pub mod hr;
 pub mod inventory;
 pub mod modules;
 pub mod partners;
@@ -117,7 +118,25 @@ pub fn run() {
             commands::cmd_reverse_move,
             commands::cmd_list_payments,
             commands::cmd_create_and_post_payment,
-            commands::cmd_get_trial_balance
+            commands::cmd_get_trial_balance,
+            // Phase 6: Human Resources (HR)
+            commands::cmd_list_departments,
+            commands::cmd_create_department,
+            commands::cmd_list_jobs,
+            commands::cmd_create_job,
+            commands::cmd_list_employees,
+            commands::cmd_get_employee,
+            commands::cmd_create_employee,
+            commands::cmd_update_employee,
+            commands::cmd_delete_employee,
+            commands::cmd_list_contracts,
+            commands::cmd_create_contract,
+            commands::cmd_list_leaves,
+            commands::cmd_create_leave,
+            commands::cmd_validate_leave,
+            commands::cmd_refuse_leave,
+            commands::cmd_list_attendances,
+            commands::cmd_record_attendance
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

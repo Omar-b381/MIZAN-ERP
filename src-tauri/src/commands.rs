@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use tauri::State;
-use crate::{accounting, activity, auth, companies, inventory, modules, partners, products, purchases, rbac, sales, settings, AppState};
+use crate::{accounting, activity, auth, companies, hr, inventory, modules, partners, products, purchases, rbac, sales, settings, AppState};
 
 // ----------------------------------------------------
 // Modules Commands
@@ -942,6 +942,187 @@ pub async fn cmd_get_trial_balance(
     company_id: i64,
 ) -> Result<Vec<accounting::TrialBalanceRow>, String> {
     accounting::get_trial_balance(&state.pool, company_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ----------------------------------------------------
+// Human Resources (HR) Commands (Phase 6)
+// ----------------------------------------------------
+#[tauri::command]
+pub async fn cmd_list_departments(
+    state: State<'_, AppState>,
+    company_id: i64,
+) -> Result<Vec<hr::Department>, String> {
+    hr::list_departments(&state.pool, company_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_create_department(
+    state: State<'_, AppState>,
+    input: hr::CreateDepartmentInput,
+) -> Result<hr::Department, String> {
+    hr::create_department(&state.pool, input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_list_jobs(
+    state: State<'_, AppState>,
+    company_id: i64,
+) -> Result<Vec<hr::JobPosition>, String> {
+    hr::list_jobs(&state.pool, company_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_create_job(
+    state: State<'_, AppState>,
+    input: hr::CreateJobInput,
+) -> Result<hr::JobPosition, String> {
+    hr::create_job(&state.pool, input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_list_employees(
+    state: State<'_, AppState>,
+    company_id: i64,
+    department_id: Option<i64>,
+    status_filter: Option<String>,
+) -> Result<Vec<hr::Employee>, String> {
+    hr::list_employees(&state.pool, company_id, department_id, status_filter)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_get_employee(
+    state: State<'_, AppState>,
+    employee_id: i64,
+) -> Result<Option<hr::Employee>, String> {
+    hr::get_employee(&state.pool, employee_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_create_employee(
+    state: State<'_, AppState>,
+    input: hr::CreateEmployeeInput,
+) -> Result<hr::Employee, String> {
+    hr::create_employee(&state.pool, input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_update_employee(
+    state: State<'_, AppState>,
+    input: hr::UpdateEmployeeInput,
+) -> Result<hr::Employee, String> {
+    hr::update_employee(&state.pool, input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_delete_employee(
+    state: State<'_, AppState>,
+    employee_id: i64,
+) -> Result<(), String> {
+    hr::delete_employee(&state.pool, employee_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_list_contracts(
+    state: State<'_, AppState>,
+    company_id: i64,
+    employee_id: Option<i64>,
+) -> Result<Vec<hr::Contract>, String> {
+    hr::list_contracts(&state.pool, company_id, employee_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_create_contract(
+    state: State<'_, AppState>,
+    input: hr::CreateContractInput,
+) -> Result<hr::Contract, String> {
+    hr::create_contract(&state.pool, input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_list_leaves(
+    state: State<'_, AppState>,
+    company_id: i64,
+    employee_id: Option<i64>,
+    state_filter: Option<String>,
+) -> Result<Vec<hr::LeaveRequest>, String> {
+    hr::list_leaves(&state.pool, company_id, employee_id, state_filter)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_create_leave(
+    state: State<'_, AppState>,
+    input: hr::CreateLeaveInput,
+) -> Result<hr::LeaveRequest, String> {
+    hr::create_leave(&state.pool, input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_validate_leave(
+    state: State<'_, AppState>,
+    leave_id: i64,
+    approved_by_id: i64,
+) -> Result<hr::LeaveRequest, String> {
+    hr::validate_leave(&state.pool, leave_id, approved_by_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_refuse_leave(
+    state: State<'_, AppState>,
+    leave_id: i64,
+) -> Result<hr::LeaveRequest, String> {
+    hr::refuse_leave(&state.pool, leave_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_list_attendances(
+    state: State<'_, AppState>,
+    company_id: i64,
+    employee_id: Option<i64>,
+    date_filter: Option<String>,
+) -> Result<Vec<hr::AttendanceRecord>, String> {
+    hr::list_attendances(&state.pool, company_id, employee_id, date_filter)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_record_attendance(
+    state: State<'_, AppState>,
+    input: hr::RecordAttendanceInput,
+) -> Result<hr::AttendanceRecord, String> {
+    hr::record_attendance(&state.pool, input)
         .await
         .map_err(|e| e.to_string())
 }

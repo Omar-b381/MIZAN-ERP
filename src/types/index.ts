@@ -677,3 +677,166 @@ export interface CreatePaymentInput {
   invoice_id?: number | null;
   note?: string | null;
 }
+
+// ----------------------------------------------------
+// Phase 6: Human Resources (HR) Types
+// ----------------------------------------------------
+export interface Department {
+  id: number;
+  company_id: number;
+  name: string;
+  parent_id?: number | null;
+  manager_id?: number | null;
+  created_at: string;
+}
+
+export interface JobPosition {
+  id: number;
+  company_id: number;
+  name: string;
+  department_id?: number | null;
+  department_name?: string | null;
+  expected_employees: number;
+  created_at: string;
+}
+
+export type EmployeeStatus = 'active' | 'on_leave' | 'terminated';
+
+export interface Employee {
+  id: number;
+  company_id: number;
+  partner_id?: number | null;
+  name: string;
+  work_email?: string | null;
+  work_phone?: string | null;
+  department_id?: number | null;
+  department_name?: string | null;
+  job_id?: number | null;
+  job_name?: string | null;
+  manager_id?: number | null;
+  manager_name?: string | null;
+  hire_date: string;
+  national_id?: string | null;
+  status: EmployeeStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ContractState = 'draft' | 'open' | 'close' | 'cancelled';
+
+export interface Contract {
+  id: number;
+  company_id: number;
+  employee_id: number;
+  employee_name?: string | null;
+  name: string;
+  wage_cents: number;
+  date_start: string;
+  date_end?: string | null;
+  state: ContractState;
+  working_hours_per_week: number;
+  notes?: string | null;
+  created_at: string;
+}
+
+export type LeaveType = 'annual' | 'sick' | 'unpaid' | 'emergency';
+export type LeaveState = 'draft' | 'confirm' | 'validate' | 'refuse';
+
+export interface LeaveRequest {
+  id: number;
+  company_id: number;
+  employee_id: number;
+  employee_name?: string | null;
+  leave_type: LeaveType;
+  date_from: string;
+  date_to: string;
+  duration_days_milli: number;
+  state: LeaveState;
+  reason?: string | null;
+  approved_by_id?: number | null;
+  created_at: string;
+}
+
+export type AttendanceStatus = 'present' | 'late' | 'absent';
+
+export interface AttendanceRecord {
+  id: number;
+  company_id: number;
+  employee_id: number;
+  employee_name?: string | null;
+  date: string;
+  check_in: string;
+  check_out?: string | null;
+  worked_hours_milli: number;
+  status: AttendanceStatus;
+  notes?: string | null;
+  created_at: string;
+}
+
+export interface CreateDepartmentInput {
+  company_id: number;
+  name: string;
+  parent_id?: number | null;
+  manager_id?: number | null;
+}
+
+export interface CreateJobInput {
+  company_id: number;
+  name: string;
+  department_id?: number | null;
+  expected_employees?: number | null;
+}
+
+export interface CreateEmployeeInput {
+  company_id: number;
+  name: string;
+  work_email?: string | null;
+  work_phone?: string | null;
+  department_id?: number | null;
+  job_id?: number | null;
+  manager_id?: number | null;
+  hire_date?: string | null;
+  national_id?: string | null;
+}
+
+export interface UpdateEmployeeInput {
+  id: number;
+  name: string;
+  work_email?: string | null;
+  work_phone?: string | null;
+  department_id?: number | null;
+  job_id?: number | null;
+  manager_id?: number | null;
+  hire_date?: string | null;
+  national_id?: string | null;
+  status?: string | null;
+}
+
+export interface CreateContractInput {
+  company_id: number;
+  employee_id: number;
+  wage_cents: number;
+  date_start?: string | null;
+  date_end?: string | null;
+  working_hours_per_week?: number | null;
+  notes?: string | null;
+}
+
+export interface CreateLeaveInput {
+  company_id: number;
+  employee_id: number;
+  leave_type: LeaveType;
+  date_from: string;
+  date_to: string;
+  duration_days_milli: number;
+  reason?: string | null;
+}
+
+export interface RecordAttendanceInput {
+  company_id: number;
+  employee_id: number;
+  date?: string | null;
+  check_in: string;
+  check_out?: string | null;
+  notes?: string | null;
+}

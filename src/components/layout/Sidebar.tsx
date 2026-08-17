@@ -12,7 +12,6 @@ import {
   ShoppingBag,
   Package,
   Landmark,
-  UserCheck,
   Lock,
   ArrowLeftRight,
   ClipboardCheck,
@@ -20,6 +19,8 @@ import {
   Receipt,
   BookOpen,
   CreditCard,
+  CalendarDays,
+  Clock,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { ModuleRecord } from '../../types';
@@ -172,18 +173,36 @@ export const Sidebar: React.FC<SidebarProps> = ({ modules }) => {
     },
   ];
 
-  const modularFeatures = [
+  const hrNavItems = [
     {
-      key: 'accounting',
-      label: t('nav.accounting', 'الحسابات العامة'),
-      icon: Landmark,
-      view: 'accounting',
+      id: 'employees',
+      label: t('nav.employees', 'دليل الموظفين والهيكل'),
+      icon: Users2,
+      view: 'employees',
+      permission: 'hr.view',
     },
     {
-      key: 'employees',
-      label: t('nav.hr', 'الموارد البشرية'),
-      icon: UserCheck,
-      view: 'hr',
+      id: 'leaves',
+      label: t('nav.leaves', 'طلبات الإجازات والعطلات'),
+      icon: CalendarDays,
+      view: 'leaves',
+      permission: 'hr.leaves.manage',
+    },
+    {
+      id: 'attendance',
+      label: t('nav.attendance', 'سجل الحضور والانصراف'),
+      icon: Clock,
+      view: 'attendance',
+      permission: 'hr.attendance.manage',
+    },
+  ];
+
+  const modularFeatures = [
+    {
+      key: 'payroll',
+      label: t('nav.payroll', 'مسير الرواتب والتأمينات'),
+      icon: Landmark,
+      view: 'payroll',
     },
   ];
 
@@ -347,6 +366,38 @@ export const Sidebar: React.FC<SidebarProps> = ({ modules }) => {
           </div>
         )}
 
+        {/* Human Resources (HR) Management */}
+        {isModuleActive('employees') && (
+          <div className="space-y-1 pt-2 border-t border-border/60">
+            <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+              <span>{t('modules.hrSection', 'الموارد البشرية والموظفين')}</span>
+              <span className="text-[10px] text-emerald-600 font-semibold">نشط</span>
+            </div>
+            {hrNavItems.map((item) => {
+              if (item.permission && !hasPermission(item.permission)) {
+                return null;
+              }
+              const Icon = item.icon;
+              const isActive = activeView === item.view;
+
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveView(item.view)}
+                  className={`w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-foreground/80 hover:bg-secondary hover:text-foreground'
+                  }`}
+                >
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-primary-foreground' : 'text-primary'}`} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Future Business Modules */}
         <div className="space-y-1 pt-2 border-t border-border/60">
           <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
@@ -388,7 +439,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ modules }) => {
       {/* Footer Info */}
       <div className="p-4 border-t border-border/40 text-center">
         <p className="text-[11px] text-muted-foreground font-medium">
-          Mizan ERP v0.5 • Phase 5
+          Mizan ERP v0.6 • Phase 6
         </p>
       </div>
     </aside>
