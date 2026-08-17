@@ -97,6 +97,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ modules }) => {
     },
   ];
 
+  const purchasesNavItems = [
+    {
+      id: 'purchase_orders',
+      label: t('nav.purchaseOrders', 'أوامر الشراء وطلبات الأسعار'),
+      icon: ShoppingBag,
+      view: 'purchases',
+      permission: 'purchases.view',
+    },
+  ];
+
   const inventoryNavItems = [
     {
       id: 'products',
@@ -136,12 +146,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ modules }) => {
   ];
 
   const modularFeatures = [
-    {
-      key: 'purchases',
-      label: t('nav.purchases', 'المشتريات'),
-      icon: ShoppingBag,
-      view: 'purchases',
-    },
     {
       key: 'accounting',
       label: t('nav.accounting', 'الحسابات العامة'),
@@ -196,6 +200,38 @@ export const Sidebar: React.FC<SidebarProps> = ({ modules }) => {
               <span className="text-[10px] text-emerald-600 font-semibold">نشط</span>
             </div>
             {salesNavItems.map((item) => {
+              if (item.permission && !hasPermission(item.permission)) {
+                return null;
+              }
+              const Icon = item.icon;
+              const isActive = activeView === item.view;
+
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveView(item.view)}
+                  className={`w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-foreground/80 hover:bg-secondary hover:text-foreground'
+                  }`}
+                >
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-primary-foreground' : 'text-primary'}`} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Purchases Section (Active in Phase 4) */}
+        {isModuleActive('purchases') && (
+          <div className="space-y-1 pt-2 border-t border-border/60">
+            <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+              <span>{t('modules.purchasesSection', 'المشتريات')}</span>
+              <span className="text-[10px] text-emerald-600 font-semibold">نشط</span>
+            </div>
+            {purchasesNavItems.map((item) => {
               if (item.permission && !hasPermission(item.permission)) {
                 return null;
               }
@@ -293,7 +329,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ modules }) => {
       {/* Footer Info */}
       <div className="p-4 border-t border-border/40 text-center">
         <p className="text-[11px] text-muted-foreground font-medium">
-          Mizan ERP v0.3 • Phase 3
+          Mizan ERP v0.4 • Phase 4
         </p>
       </div>
     </aside>

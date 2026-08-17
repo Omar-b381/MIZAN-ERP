@@ -43,6 +43,7 @@
     "deactivate": "Deactivate",
     "core": "Core Architecture",
     "salesSection": "Sales",
+    "purchasesSection": "Purchases & Vendors",
     "inventorySection": "Inventory & Products",
     "products": "Products & Catalog",
     "inventory": "Inventory & Warehouse",
@@ -55,6 +56,32 @@
     "recruitment": "Recruitment",
     "timeoff": "Time-Off Management",
     "timesheet": "Attendance & Timesheets"
+  },
+  "purchases": {
+    "title": "Purchases & Vendor Orders",
+    "subtitle": "Complete procurement cycle: requests for quotation (RFQs), purchase orders (POs), Egyptian VAT, and automated warehouse receipt orders",
+    "createOrder": "Create RFQ / Purchase Order",
+    "editOrder": "Edit Purchase Order",
+    "saveRfq": "Save as RFQ",
+    "confirmCancel": "Are you sure you want to cancel this purchase order?",
+    "confirmDelete": "Are you sure you want to delete this draft?",
+    "empty": "No purchase orders or RFQs found",
+    "searchPlaceholder": "Search by PO number, vendor name, or origin reference...",
+    "fields": {
+      "number": "Order No.",
+      "vendor": "Vendor",
+      "date": "Order Date",
+      "datePlanned": "Expected Delivery Date",
+      "currency": "Currency",
+      "origin": "Source / Requisition",
+      "untaxed": "Untaxed Amount",
+      "tax": "VAT (14%)",
+      "total": "Total Amount",
+      "receipt": "Warehouse Receipt",
+      "invoice": "Bill Status",
+      "state": "Status",
+      "notes": "Terms & Notes"
+    }
   },
   "sales": {
     "title": "Sales & Quotations",

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use tauri::State;
-use crate::{activity, auth, companies, inventory, modules, partners, products, rbac, sales, settings, AppState};
+use crate::{activity, auth, companies, inventory, modules, partners, products, purchases, rbac, sales, settings, AppState};
 
 // ----------------------------------------------------
 // Modules Commands
@@ -730,6 +730,81 @@ pub async fn cmd_delete_sale_order(
     order_id: i64,
 ) -> Result<(), String> {
     sales::delete_sale_order(&state.pool, order_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ----------------------------------------------------
+// Purchases & Vendor Orders Commands (Phase 4)
+// ----------------------------------------------------
+#[tauri::command]
+pub async fn cmd_list_purchase_orders(
+    state: State<'_, AppState>,
+    company_id: i64,
+    state_filter: Option<String>,
+    partner_id: Option<i64>,
+) -> Result<Vec<purchases::PurchaseOrder>, String> {
+    purchases::list_purchase_orders(&state.pool, company_id, state_filter, partner_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_get_purchase_order(
+    state: State<'_, AppState>,
+    order_id: i64,
+) -> Result<Option<purchases::PurchaseOrderDetail>, String> {
+    purchases::get_purchase_order(&state.pool, order_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_create_purchase_order(
+    state: State<'_, AppState>,
+    input: purchases::CreatePurchaseOrderInput,
+) -> Result<purchases::PurchaseOrderDetail, String> {
+    purchases::create_purchase_order(&state.pool, input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_update_purchase_order(
+    state: State<'_, AppState>,
+    input: purchases::UpdatePurchaseOrderInput,
+) -> Result<purchases::PurchaseOrderDetail, String> {
+    purchases::update_purchase_order(&state.pool, input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_confirm_purchase_order(
+    state: State<'_, AppState>,
+    order_id: i64,
+) -> Result<purchases::PurchaseOrderDetail, String> {
+    purchases::confirm_purchase_order(&state.pool, order_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_cancel_purchase_order(
+    state: State<'_, AppState>,
+    order_id: i64,
+) -> Result<purchases::PurchaseOrderDetail, String> {
+    purchases::cancel_purchase_order(&state.pool, order_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_delete_purchase_order(
+    state: State<'_, AppState>,
+    order_id: i64,
+) -> Result<(), String> {
+    purchases::delete_purchase_order(&state.pool, order_id)
         .await
         .map_err(|e| e.to_string())
 }

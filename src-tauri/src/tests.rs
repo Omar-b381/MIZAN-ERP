@@ -1,5 +1,5 @@
 use crate::{
-    activity, auth, companies, db, inventory, modules, partners, products, rbac, sales, settings,
+    activity, auth, companies, db, inventory, modules, partners, products, purchases, rbac, sales, settings,
 };
 use sqlx::SqlitePool;
 
@@ -733,6 +733,143 @@ async fn test_sales_order_cancellation_workflow() {
     assert_eq!(cancelled.order.delivery_status, "cancelled");
 
     // 3. Verify the linked picking was also cancelled
+    let picking = inventory::get_picking_by_id(&pool, picking_id).await.unwrap().unwrap();
+    assert_eq!(picking.state, "cancelled");
+}
+
+#[tokio::test]
+async fn test_purchase_order_creation_and_financial_calculations() {
+    let pool = setup_test_db().await;
+
+    // 10x Monitors @ 4,000 EGP (400,000 cents) with 5% discount (5,000 milli) and 14% VAT (14,000 milli)
+    // Base: 40,000 EGP = 4,000,000 cents
+    // Disc: 2,000 EGP = 200,000 cents
+    // Subtotal: 38,000 EGP = 3,800,000 cents
+    // Tax: 38,000 * 14% = 5,320 EGP = 532,000 cents
+    // Total: 43,320 EGP = 4,332,000 cents
+    let po = purchases::create_purchase_order(
+        &pool,
+        purchases::CreatePurchaseOrderInput {
+            company_id: 1,
+            partner_id: 3,
+            date_planned: Some("2026-11-15".to_string()),
+            currency: Some("EGP".to_string()),
+            origin: Some("PR/2026/099".to_string()),
+            note: Some("طلب شراء شاشات للمقر الرئيسي".to_string()),
+            lines: vec![purchases::CreatePurchaseOrderLineInput {
+                product_id: 2,
+                name: Some("Samsung 27 Monitor".to_string()),
+                product_uom_qty_milli: 10000,
+                product_uom_id: 1,
+                price_unit_cents: 400000,
+                discount_percent_milli: Some(5000), // 5%
+                tax_rate_milli: Some(14000),        // 14%
+            }],
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(po.order.state, "draft");
+    assert_eq!(po.order.amount_untaxed_cents, 3800000);
+    assert_eq!(po.order.amount_tax_cents, 532000);
+    assert_eq!(po.order.amount_total_cents, 4332000);
+    assert_eq!(po.lines.len(), 1);
+    assert_eq!(po.lines[0].price_subtotal_cents, 3800000);
+    assert_eq!(po.lines[0].price_total_cents, 4332000);
+}
+
+#[tokio::test]
+async fn test_purchase_order_confirmation_and_receipt_trigger() {
+    let pool = setup_test_db().await;
+
+    // 1. Create a PO
+    let po = purchases::create_purchase_order(
+        &pool,
+        purchases::CreatePurchaseOrderInput {
+            company_id: 1,
+            partner_id: 3,
+            date_planned: Some("2026-10-20".to_string()),
+            currency: Some("EGP".to_string()),
+            origin: Some("RFQ/2026/001".to_string()),
+            note: Some("توريد فوري".to_string()),
+            lines: vec![purchases::CreatePurchaseOrderLineInput {
+                product_id: 1,
+                name: Some("Dell Latitude 5530".to_string()),
+                product_uom_qty_milli: 4000,
+                product_uom_id: 1,
+                price_unit_cents: 2800000,
+                discount_percent_milli: None,
+                tax_rate_milli: None,
+            }],
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(po.order.receipt_status, "no");
+    assert!(po.order.picking_id.is_none());
+
+    // 2. Confirm the PO
+    let confirmed = purchases::confirm_purchase_order(&pool, po.order.id).await.unwrap();
+
+    assert_eq!(confirmed.order.state, "purchase");
+    assert_eq!(confirmed.order.receipt_status, "to_receive");
+    assert_eq!(confirmed.order.invoice_status, "to_bill");
+    assert!(confirmed.order.picking_id.is_some());
+
+    // 3. Verify the generated incoming receipt (WH/IN)
+    let picking_id = confirmed.order.picking_id.unwrap();
+    let picking = inventory::get_picking_by_id(&pool, picking_id).await.unwrap().unwrap();
+
+    assert_eq!(picking.partner_id, Some(3));
+    assert_eq!(picking.origin, Some(confirmed.order.name));
+    assert_eq!(picking.state, "confirmed");
+
+    // 4. Verify the stock move lines
+    let moves = inventory::get_picking_moves(&pool, picking_id).await.unwrap();
+    assert_eq!(moves.len(), 1);
+    assert_eq!(moves[0].product_id, 1);
+    assert_eq!(moves[0].product_uom_qty_milli, 4000);
+}
+
+#[tokio::test]
+async fn test_purchase_order_cancellation_workflow() {
+    let pool = setup_test_db().await;
+
+    // 1. Create and confirm a PO
+    let po = purchases::create_purchase_order(
+        &pool,
+        purchases::CreatePurchaseOrderInput {
+            company_id: 1,
+            partner_id: 3,
+            date_planned: None,
+            currency: Some("EGP".to_string()),
+            origin: None,
+            note: None,
+            lines: vec![purchases::CreatePurchaseOrderLineInput {
+                product_id: 2,
+                name: Some("Samsung 27 Monitor".to_string()),
+                product_uom_qty_milli: 2000,
+                product_uom_id: 1,
+                price_unit_cents: 400000,
+                discount_percent_milli: None,
+                tax_rate_milli: None,
+            }],
+        },
+    )
+    .await
+    .unwrap();
+
+    let confirmed = purchases::confirm_purchase_order(&pool, po.order.id).await.unwrap();
+    let picking_id = confirmed.order.picking_id.unwrap();
+
+    // 2. Cancel the PO
+    let cancelled = purchases::cancel_purchase_order(&pool, confirmed.order.id).await.unwrap();
+    assert_eq!(cancelled.order.state, "cancelled");
+    assert_eq!(cancelled.order.receipt_status, "cancelled");
+
+    // 3. Verify linked incoming picking is cancelled
     let picking = inventory::get_picking_by_id(&pool, picking_id).await.unwrap().unwrap();
     assert_eq!(picking.state, "cancelled");
 }

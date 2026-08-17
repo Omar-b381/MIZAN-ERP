@@ -7,6 +7,7 @@ pub mod inventory;
 pub mod modules;
 pub mod partners;
 pub mod products;
+pub mod purchases;
 pub mod rbac;
 pub mod sales;
 pub mod settings;
@@ -93,7 +94,15 @@ pub fn run() {
             commands::cmd_update_sale_order,
             commands::cmd_confirm_sale_order,
             commands::cmd_cancel_sale_order,
-            commands::cmd_delete_sale_order
+            commands::cmd_delete_sale_order,
+            // Phase 4: Purchases
+            commands::cmd_list_purchase_orders,
+            commands::cmd_get_purchase_order,
+            commands::cmd_create_purchase_order,
+            commands::cmd_update_purchase_order,
+            commands::cmd_confirm_purchase_order,
+            commands::cmd_cancel_purchase_order,
+            commands::cmd_delete_purchase_order
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

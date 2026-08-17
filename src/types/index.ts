@@ -423,3 +423,87 @@ export interface UpdateSaleOrderInput {
   note?: string | null;
   lines: CreateSaleOrderLineInput[];
 }
+
+// ----------------------------------------------------
+// Phase 4: Purchases Types
+// ----------------------------------------------------
+export type PurchaseOrderState = 'draft' | 'sent' | 'purchase' | 'done' | 'cancelled';
+export type ReceiptStatus = 'no' | 'to_receive' | 'received' | 'cancelled';
+export type BillStatus = 'no' | 'to_bill' | 'billed' | 'cancelled';
+
+export interface PurchaseOrder {
+  id: number;
+  company_id: number;
+  name: string;
+  partner_id: number;
+  partner_name?: string | null;
+  date_order: string;
+  date_planned?: string | null;
+  state: PurchaseOrderState;
+  currency: string;
+  amount_untaxed_cents: number;
+  amount_tax_cents: number;
+  amount_total_cents: number;
+  receipt_status: ReceiptStatus;
+  invoice_status: BillStatus;
+  picking_id?: number | null;
+  origin?: string | null;
+  note?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PurchaseOrderLine {
+  id: number;
+  order_id: number;
+  product_id: number;
+  product_name?: string | null;
+  product_sku?: string | null;
+  name: string;
+  product_uom_qty_milli: number;
+  product_uom_id: number;
+  uom_name?: string | null;
+  price_unit_cents: number;
+  discount_percent_milli: number;
+  tax_rate_milli: number;
+  price_subtotal_cents: number;
+  price_total_cents: number;
+  qty_received_milli: number;
+  qty_billed_milli: number;
+  sequence: number;
+  created_at: string;
+}
+
+export interface PurchaseOrderDetail {
+  order: PurchaseOrder;
+  lines: PurchaseOrderLine[];
+}
+
+export interface CreatePurchaseOrderLineInput {
+  product_id: number;
+  name?: string;
+  product_uom_qty_milli: number;
+  product_uom_id: number;
+  price_unit_cents: number;
+  discount_percent_milli?: number;
+  tax_rate_milli?: number;
+}
+
+export interface CreatePurchaseOrderInput {
+  company_id: number;
+  partner_id: number;
+  date_planned?: string | null;
+  currency?: string;
+  origin?: string | null;
+  note?: string | null;
+  lines: CreatePurchaseOrderLineInput[];
+}
+
+export interface UpdatePurchaseOrderInput {
+  id: number;
+  partner_id: number;
+  date_planned?: string | null;
+  origin?: string | null;
+  note?: string | null;
+  lines: CreatePurchaseOrderLineInput[];
+}
