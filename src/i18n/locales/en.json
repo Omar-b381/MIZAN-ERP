@@ -1,0 +1,52 @@
+{
+  "app": {
+    "title": "Mizan ERP",
+    "subtitle": "Integrated Business Management Platform for SMEs",
+    "tagline": "Local-first, Modular, and Fast"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "contacts": "Contacts",
+    "sales": "Sales",
+    "purchases": "Purchases",
+    "inventory": "Inventory",
+    "accounting": "Accounting",
+    "hr": "Human Resources",
+    "modules": "Module Manager",
+    "settings": "Settings"
+  },
+  "modules": {
+    "title": "Modules",
+    "description": "Enable and manage system modules according to your business needs",
+    "active": "Active",
+    "inactive": "Inactive",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "core": "Core Platform",
+    "products": "Products Catalog",
+    "inventory": "Inventory & Warehouses",
+    "sales": "Sales & Orders",
+    "purchases": "Purchases & Procurement",
+    "accounting": "General Accounting",
+    "invoices": "Invoicing & Billing",
+    "payments": "Payments & Receipts",
+    "employees": "Employees",
+    "recruitment": "Recruitment",
+    "timeoff": "Time Off",
+    "timesheet": "Timesheets"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search...",
+    "status": "Status",
+    "actions": "Actions",
+    "language": "Language",
+    "arabic": "العربية",
+    "english": "English",
+    "direction": "ltr"
+  }
+}
