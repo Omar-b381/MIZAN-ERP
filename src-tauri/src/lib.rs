@@ -1,10 +1,12 @@
 pub mod accounting;
 pub mod activity;
 pub mod auth;
+pub mod backup;
 pub mod commands;
 pub mod companies;
 pub mod dashboard;
 pub mod db;
+pub mod diagnostics;
 pub mod hr;
 pub mod inventory;
 pub mod modules;
@@ -139,7 +141,12 @@ pub fn run() {
             commands::cmd_list_attendances,
             commands::cmd_record_attendance,
             // Phase 7: Dashboard & Analytics
-            commands::cmd_get_dashboard_metrics
+            commands::cmd_get_dashboard_metrics,
+            // Phase 8 Track A: Hardening & Backups
+            commands::cmd_create_backup,
+            commands::cmd_list_backups,
+            commands::cmd_restore_backup,
+            commands::cmd_export_diagnostics
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

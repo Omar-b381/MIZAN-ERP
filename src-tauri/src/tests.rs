@@ -1,5 +1,5 @@
 use crate::{
-    accounting, activity, auth, companies, dashboard, db, hr, inventory, modules, partners, products, purchases, rbac, sales, settings,
+    accounting, activity, auth, backup, companies, dashboard, db, diagnostics, hr, inventory, modules, partners, products, purchases, rbac, sales, settings,
 };
 use sqlx::SqlitePool;
 
@@ -1253,5 +1253,153 @@ async fn test_dashboard_metrics_aggregation() {
     // Verify monthly payroll >= 35,000 + 25,000 + 20,000 = 80,000 EGP = 8,000,000 cents
     assert!(metrics.monthly_payroll_cents >= 8000000);
 }
+
+// ----------------------------------------------------
+// Phase 8 Track A Integration Tests
+// ----------------------------------------------------
+#[tokio::test]
+async fn test_argon2id_password_hashing_and_legacy_sha256_upgrade() {
+    let pool = setup_test_db().await;
+
+    // 1. Verify Argon2id hashing produces valid PHC string
+    let raw_pwd = "AdminSecurePass123!";
+    let argon2_hash = auth::hash_password_argon2(raw_pwd);
+    assert!(argon2_hash.starts_with("$argon2id$"));
+    assert!(auth::verify_password_argon2(raw_pwd, &argon2_hash));
+    assert!(!auth::verify_password_argon2("WrongPassword", &argon2_hash));
+
+    // 2. Create user with legacy SHA-256 hash in DB
+    let legacy_salt = "legacy_salt_123";
+    let legacy_hash = auth::hash_password_legacy(raw_pwd, legacy_salt);
+
+    sqlx::query(
+        "INSERT INTO users (company_id, username, email, password_hash, salt, full_name, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)"
+    )
+    .bind(1)
+    .bind("legacy_user")
+    .bind("legacy@mizan.erp")
+    .bind(&legacy_hash)
+    .bind(legacy_salt)
+    .bind("Legacy User")
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    // 3. Login with legacy user -> should authenticate successfully and silently upgrade hash to Argon2id
+    let session = auth::login(
+        &pool,
+        auth::LoginInput {
+            username: "legacy_user".to_string(),
+            password: raw_pwd.to_string(),
+        },
+    )
+    .await
+    .unwrap();
+
+    assert!(session.is_some());
+    assert_eq!(session.unwrap().username, "legacy_user");
+
+    // 4. Verify that stored hash was upgraded to Argon2id
+    let updated_hash: String = sqlx::query_scalar("SELECT password_hash FROM users WHERE username = 'legacy_user'")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+    assert!(updated_hash.starts_with("$argon2id$"));
+    assert!(auth::verify_password_argon2(raw_pwd, &updated_hash));
+}
+
+#[tokio::test]
+async fn test_database_backup_and_restore_integrity() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let db_path = temp_dir.path().join("test_mizan.db");
+    let backup_dir = temp_dir.path().join("backups");
+
+    // Initialize physical SQLite file DB
+    let db_url = format!("sqlite://{}", db_path.to_string_lossy());
+    let pool = db::init_db(&db_url).await.unwrap();
+
+    // Insert test company
+    sqlx::query("INSERT INTO companies (id, name, currency, timezone, country) VALUES (99, 'Backup Test Co', 'EGP', 'Africa/Cairo', 'Egypt')")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    // Create Backup
+    let backup_info = backup::create_backup(&pool, &db_path, &backup_dir, 5)
+        .await
+        .unwrap();
+
+    assert!(std::path::Path::new(&backup_info.file_path).exists());
+    assert!(backup_info.size_bytes > 0);
+
+    // Corrupt / delete data in live DB
+    sqlx::query("DELETE FROM companies WHERE id = 99")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let count_deleted: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM companies WHERE id = 99")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(count_deleted, 0);
+
+    // Restore Backup
+    let restore_result = backup::restore_backup(&pool, &db_path, std::path::Path::new(&backup_info.file_path), &backup_dir)
+        .await
+        .unwrap();
+
+    assert!(restore_result.success);
+    assert!(std::path::Path::new(&restore_result.safety_snapshot_path).exists());
+
+    // Reconnect and verify data is fully restored
+    let pool_restored = db::init_db(&db_url).await.unwrap();
+    let count_restored: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM companies WHERE id = 99")
+        .fetch_one(&pool_restored)
+        .await
+        .unwrap();
+
+    assert_eq!(count_restored, 1);
+}
+
+#[tokio::test]
+async fn test_diagnostics_logging_and_export() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let app_dir = temp_dir.path();
+    let export_file = app_dir.join("mizan_diagnostic_export.json");
+
+    // Log diagnostic errors
+    diagnostics::log_diagnostic_error(app_dir, "auth", "login", "Invalid credentials entered").unwrap();
+    diagnostics::log_diagnostic_error(app_dir, "inventory", "stock_move", "Location not found").unwrap();
+
+    // Read recent logs
+    let logs = diagnostics::read_recent_diagnostics(app_dir, 10).unwrap();
+    assert_eq!(logs.len(), 2);
+    assert_eq!(logs[0].module, "inventory");
+    assert_eq!(logs[1].module, "auth");
+
+    // Export report
+    let result = diagnostics::export_diagnostic_report(app_dir, &export_file).unwrap();
+    assert_eq!(result.total_entries, 2);
+    assert!(export_file.exists());
+}
+
+#[test]
+fn test_single_instance_lockfile_guard() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let lock_path = temp_dir.path().join("mizan.lock");
+
+    // First process acquires lock
+    let lock1 = db::acquire_db_lock(&lock_path);
+    assert!(lock1.is_ok());
+
+    // Second process attempting same lock is rejected with clear error
+    let lock2 = db::acquire_db_lock(&lock_path);
+    assert!(lock2.is_err());
+    let err_msg = lock2.unwrap_err().to_string();
+    assert!(err_msg.contains("مفتوح بالفعل"));
+}
+
 
 

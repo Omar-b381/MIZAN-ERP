@@ -1,27 +1,34 @@
-# Project Notes & §13 Open Questions Log
+# MIZAN ERP — Architectural Decisions & Notes (Phase 8)
 
-This document records ongoing architectural decisions, operational assumptions, and questions logged for review with the product owner.
+## 1. Licensing & Legal Model Decision (§0.1)
+- **License Type**: Proprietary / Commercial License (All Rights Reserved).
+- **Rationale**: Mizan ERP is designed as a standalone, offline-first commercial software product sold via perpetual one-time purchase with optional tier upgrades (Starter / Business / Enterprise). The initial open-source placeholder license is replaced with commercial software terms.
+- **Source Protection**: License validation is enforced offline using asymmetric Ed25519 signatures, machine binding, and module-level activation gating.
 
----
+## 2. Password Hashing Architecture (A1)
+- **Algorithm**: Argon2id (via RustCrypto `argon2` crate).
+- **Salt**: Cryptographically secure random 128-bit salt (`SaltString::generate(&mut OsRng)`).
+- **Format**: Standard PHC string format (`$argon2id$v=19$m=19456,t=2,p=1$...`).
+- **Transparent Migration**: Login automatically detects legacy 64-character SHA-256 hashes, verifies credentials, and transparently upgrades the stored record to Argon2id without disrupting user access.
 
-## 1. Open Questions (§13)
+## 3. Database Backup & Restore Architecture (A2)
+- **Integrity**: Always executes `PRAGMA wal_checkpoint(TRUNCATE)` before copying SQLite database files to guarantee consistent WAL synchronization.
+- **Safety Snapshot**: Every restore operation first takes a `mizan_pre_restore_YYYYMMDD_HHMMSS.db` snapshot of the active database before replacing files.
+- **Retention**: Configurable retention limit (default: last 10 snapshots) with automated pruning of older files.
 
-| ID | Topic | Question / Issue | Default MVP Assumption | Status |
-|---|---|---|---|---|
-| **OQ-01** | **Multi-branch UI** | Is interactive branch-switching with consolidated cross-branch reporting needed at MVP, or is Phase 1 schema-only support (`company_id` on all tables, default main company) sufficient? | **Schema-only support in Phase 1**, with single active company context, ready for multi-branch switcher UI in subsequent iteration. | Logged |
-| **OQ-02** | **ETA E-Invoicing** | Is direct Egyptian Tax Authority (ETA) e-invoicing API integration in scope for MVP accounting, or deferred to v2? | **Deferred to v2 / post-MVP**. Accounting module generates standard compliant electronic invoices (QR code, tax breakdown) locally. | Logged |
-| **OQ-03** | **Hardware Peripherals** | Are POS thermal receipt printers and hardware barcode scanners required for MVP Sales & Inventory? | **Standard desktop input & print handling**. Barcode input handled via standard keyboard-wedge scanners (instant text input); printing via system print dialog / PDF. | Logged |
-| **OQ-04** | **Cross-Device Sync** | How should future multi-device or multi-branch synchronization be architected? | **MVP is 100% offline local-first SQLite**. Future sync will be an optional synchronization extension (e.g. CRDTs / server replication) bolted onto the local core without rewriting business logic. | Logged |
-| **OQ-05** | **Commercial Licensing** | At what phase does licensing / software activation key infrastructure get integrated? | **Deferred to release packaging (Phase 7 or post-MVP)**. Development proceeds with unencumbered local execution. | Logged |
-| **OQ-06** | **PDF Generation Engine** | What PDF engine should be utilized for printing invoices, receipts, and reports in Phase 5? | **Decide in Phase 5**: Evaluating Rust native headless PDF generator vs Tauri webview print-to-PDF. Decision and benchmarks to be documented in Phase 5. | Open (Scheduled for Phase 5) |
+## 4. Cryptographic License Verification & Machine Binding (B2 & B2a)
+- **Asymmetric Signature**: Ed25519 (`ed25519-dalek`).
+- **Key Separation**:
+  - Private Signing Key: Stored exclusively on Omar's offline machine inside the standalone `mizan-license-issuer` tool.
+  - Public Verification Key: Embedded statically in the compiled Mizan ERP desktop application binary.
+- **Machine ID**: Deterministic SHA-256 hash of stable local machine identifiers (Windows Machine GUID / Motherboard UUID).
+- **Module Gating**:
+  - `starter`: `core`, `inventory`, `sales`
+  - `business`: `starter` + `purchases`, `accounting`
+  - `enterprise`: `business` + `employees`
 
----
-
-## 2. Technical Defaults & Guardrails
-
-- **Database:** SQLite in WAL (Write-Ahead Logging) mode, `PRAGMA foreign_keys = ON`, `PRAGMA busy_timeout = 5000`.
-- **Currency Storage:** All monetary fields stored in integer minor units (`amount_cents INTEGER`).
-- **Accounting Immutability:** Posted entries (`account_moves.state = 'posted'`) cannot be edited or deleted. Corrections must occur via `move_reversals`.
-- **Double-Entry Validation:** Every posted journal entry must satisfy $\sum \text{debit} = \sum \text{credit}$.
-- **Stock Negative Balance Guard:** Stock quantities cannot decrease below zero unless backorders are enabled.
-- **Module Authorization Defense:** Every Tauri backend command validates `modules.is_active` for its parent module in addition to user permission checks.
+## 5. Evaluation Trial Engine (B3)
+- **Duration**: 7 calendar days starting from first application launch.
+- **Evaluation Scope**: 100% of modules unlocked during the 7-day evaluation.
+- **Day 8+ Behavior**: Unclosable license activation overlay with Machine ID and license file importer. Existing SQLite business data is strictly preserved and never deleted or corrupted.
+- **Tamper Protection**: Clock-rollback detection (current timestamp earlier than trial start or SQLite creation date).

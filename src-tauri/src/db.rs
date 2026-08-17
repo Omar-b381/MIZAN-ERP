@@ -1,5 +1,7 @@
+use fs2::FileExt;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePool, SqlitePoolOptions, SqliteSynchronous};
-use std::fs;
+use std::fs::{self, File, OpenOptions};
+use std::path::Path;
 use std::str::FromStr;
 use std::time::Duration;
 use tauri::Manager;
@@ -15,9 +17,29 @@ pub enum DbError {
     Io(#[from] std::io::Error),
     #[error("Tauri path error: {0}")]
     Tauri(String),
+    #[error("Database locked by another instance: {0}")]
+    DatabaseLocked(String),
 }
 
 pub type DbPool = SqlitePool;
+
+/// Acquires an exclusive file lock to guard against multiple concurrent processes writing to the same database.
+pub fn acquire_db_lock(lock_path: &Path) -> Result<File, DbError> {
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(lock_path)?;
+
+    file.try_lock_exclusive().map_err(|_| {
+        DbError::DatabaseLocked(
+            "تطبيق ميزان ERP مفتوح بالفعل في نافذة أو جلسة أخرى على هذا الجهاز. يرجى إغلاق النافذة السابقة أولاً لتجنب تعارض البيانات.".to_string(),
+        )
+    })?;
+
+    Ok(file)
+}
 
 /// Initializes a SQLite connection pool with WAL mode, foreign keys, and executes migrations.
 pub async fn init_db(database_url: &str) -> Result<DbPool, DbError> {
@@ -52,6 +74,10 @@ pub async fn init_app_db(app: &tauri::AppHandle) -> Result<DbPool, DbError> {
     if !app_dir.exists() {
         fs::create_dir_all(&app_dir)?;
     }
+
+    // Acquire lockfile before opening DB
+    let lock_path = app_dir.join("mizan_erp.db.lock");
+    let _lock_file = acquire_db_lock(&lock_path)?;
 
     let db_path = app_dir.join("mizan_erp.db");
     let db_url = format!("sqlite://{}", db_path.to_string_lossy());

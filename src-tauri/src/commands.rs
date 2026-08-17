@@ -1,6 +1,7 @@
 use std::collections::HashMap;
-use tauri::State;
-use crate::{accounting, activity, auth, companies, dashboard, hr, inventory, modules, partners, products, purchases, rbac, sales, settings, AppState};
+use std::path::{Path, PathBuf};
+use tauri::{AppHandle, Manager, State};
+use crate::{accounting, activity, auth, backup, companies, dashboard, diagnostics, hr, inventory, modules, partners, products, purchases, rbac, sales, settings, AppState};
 
 // ----------------------------------------------------
 // Modules Commands
@@ -1138,4 +1139,78 @@ pub async fn cmd_get_dashboard_metrics(
     dashboard::get_dashboard_metrics(&state.pool, company_id)
         .await
         .map_err(|e| e.to_string())
+}
+
+// ----------------------------------------------------
+// Track A: Backup & Restore Commands
+// ----------------------------------------------------
+fn get_app_paths(app: &AppHandle) -> Result<(PathBuf, PathBuf), String> {
+    let app_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
+    let db_path = app_dir.join("mizan_erp.db");
+    let backup_dir = app_dir.join("backups");
+    Ok((db_path, backup_dir))
+}
+
+#[tauri::command]
+pub async fn cmd_create_backup(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    custom_backup_folder: Option<String>,
+) -> Result<backup::BackupInfo, String> {
+    let (db_path, default_backup_dir) = get_app_paths(&app)?;
+    let backup_dir = custom_backup_folder
+        .map(PathBuf::from)
+        .unwrap_or(default_backup_dir);
+
+    backup::create_backup(&state.pool, &db_path, &backup_dir, 10)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_list_backups(
+    app: AppHandle,
+    custom_backup_folder: Option<String>,
+) -> Result<Vec<backup::BackupInfo>, String> {
+    let (_, default_backup_dir) = get_app_paths(&app)?;
+    let backup_dir = custom_backup_folder
+        .map(PathBuf::from)
+        .unwrap_or(default_backup_dir);
+
+    backup::list_backups(&backup_dir).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_restore_backup(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    backup_file_path: String,
+    custom_backup_folder: Option<String>,
+) -> Result<backup::RestoreResult, String> {
+    let (db_path, default_backup_dir) = get_app_paths(&app)?;
+    let backup_dir = custom_backup_folder
+        .map(PathBuf::from)
+        .unwrap_or(default_backup_dir);
+    let backup_file = Path::new(&backup_file_path);
+
+    backup::restore_backup(&state.pool, &db_path, backup_file, &backup_dir)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_export_diagnostics(
+    app: AppHandle,
+    export_dest: String,
+) -> Result<diagnostics::DiagnosticExportResult, String> {
+    let app_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
+    let dest_path = Path::new(&export_dest);
+
+    diagnostics::export_diagnostic_report(&app_dir, dest_path).map_err(|e| e.to_string())
 }
