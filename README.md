@@ -25,9 +25,9 @@
    - [4.4 دورة حركة المخزون المزدوج (Double-Entry Inventory Moves)](#44-دورة-حركة-المخزون-بالقيد-المزدوج-double-entry-stock-moves)
    - [4.5 دورة القيود المحاسبية وميزان المراجعة (General Ledger)](#45-دورة-القيود-المحاسبية-المزدوجة-وميزان-المراجعة-general-ledger)
    - [4.6 دورة الموارد البشرية (HR Management Cycle)](#46-دورة-الموارد-البشرية-وإدارة-الموظفين-human-resources-management)
-5. [المراحل والقدرات المنجزة (Features & Milestones)](#-المراحل-والقدرات-المنجزة-features--milestones)
+5. [المراحل والقدرات المنجزة بالكامل (Features & Milestones)](#-المراحل-والقدرات-المنجزة-features--milestones)
 6. [التحديات الهندسية والحلول (Challenges & Solutions)](#-التحديات-الهندسية-والحلول-challenges--solutions)
-7. [دليل التثبيت والتشغيل (Getting Started)](#-دليل-التثبيت-والتشغيل-getting-started)
+7. [دليل التثبيت والتشغيل والتغليف (Getting Started & Packaging)](#-دليل-التثبيت-والتشغيل-getting-started)
 8. [خارطة الطريق والمراحل (Roadmap & Status)](#-القيود-وخارطة-الطريق-المستقبلية-limitations--roadmap)
 9. [الترخيص والمصادر (Credits & License)](#-الترخيص-والمصادر-المرجعية-credits--license)
 
@@ -64,7 +64,8 @@ graph TD
     Engine --> Purchases["Procurement & Vendor Orders Engine"]
     Engine --> GL["General Ledger (SUM(Debit) == SUM(Credit))"]
     Engine --> HR["HR, Contracts & Attendance Module"]
-    Auth & Stock & Sales & Purchases & GL & HR -->|Async SQLx Transactions| DB[("SQLite Database (WAL Mode / ACID Compliant)")]
+    Engine --> Dashboard["Executive Real-Time Analytics Engine"]
+    Auth & Stock & Sales & Purchases & GL & HR & Dashboard -->|Async SQLx Transactions| DB[("SQLite Database (WAL Mode / ACID Compliant)")]
 ```
 
 ---
@@ -73,7 +74,7 @@ graph TD
 
 ### 4.1 النظرة الشاملة لدورات العمل المترابطة (End-to-End Enterprise Flow)
 
-يوضح المخطط التالي كيف تترابط كافة وحدات النظام (المبيعات، المشتريات، المخازن، الحسابات، والخزينة) في تدفق متجانس ومحكم رياضياً:
+يوضح المخطط التالي كيف تترابط كافة وحدات النظام (المبيعات، المشتريات، المخازن، الحسابات، الموارد البشرية، ولوحة المؤشرات) في تدفق متجانس ومحكم رياضياً:
 
 ```mermaid
 flowchart TD
@@ -107,6 +108,13 @@ flowchart TD
         INV -->|Settlement| PAY_IN
     end
 
+    subgraph HR ["الموارد البشرية والرواتب"]
+        EMP["دليل الموظفين وعقود العمل"]
+        ATT["سجلات الحضور وتتبع الساعات"]
+        LEAVE["طلبات الإجازات المعتمدة"]
+        EMP & ATT & LEAVE --> PAYROLL["مسير الرواتب الشهرية"]
+    end
+
     subgraph Finance ["دفتر الأستاذ العام (General Ledger)"]
         AR["حسابات القبض والعملاء (1030)"]
         AP["حسابات الدفع والموردين (2010)"]
@@ -121,11 +129,16 @@ flowchart TD
         PAY_OUT -->|Reconcile| AP & CASH_BNK
         AR & AP & VAT_OUT & VAT_IN & CASH_BNK --> TB
     end
+
+    subgraph Executive ["لوحة المؤشرات والتحليلات اللحظية"]
+        DASH["لوحة التحكم التنفيذية (KPIs & Alerts)"]
+        TB & Inventory & Sales & Procurement & HR --> DASH
+    end
 ```
 
 ---
 
-### 4.2 دورة المبيعات والتسليم والتحصيل (Order to Cash - O2C)
+### 4.2 دورة المبيعات والتحصيل (Order to Cash - O2C)
 
 مخطط الحالة لتطور عروض الأسعار إلى أوامر بيع، وتوليد أذون الصرف الآلية، وإصدار الفواتير مع ضريبة القيمة المضافة 14%:
 
@@ -268,11 +281,11 @@ flowchart TD
 
 ### 4.6 دورة الموارد البشرية وإدارة الموظفين (Human Resources Management)
 
-مخطط سير العمل لوحدة الموارد البشرية (Phase 6):
+مخطط سير العمل الشامل لإدارة الموظفين، عقود العمل، الإجازات، وسجلات الحضور:
 
 ```mermaid
 flowchart LR
-    Recruit["دليل الموظفين والهيكل الإداري"] --> Contract["عقود العمل والرواتب"]
+    Recruit["دليل الموظفين والهيكل الإداري"] --> Contract["عقود العمل والرواتب بدقة Cents"]
     Contract --> Track["تتبع الحضور وساعات العمل (Timesheets)"]
     Contract --> Leave["طلبات الإجازات والعطلات (Time-Off)"]
     Track & Leave --> PayrollCalc["احتساب الاستحقاقات والخصومات"]
@@ -284,7 +297,7 @@ flowchart LR
 ## 📦 المراحل والقدرات المنجزة (Features & Milestones)
 
 ### المرحلة 0: النواة التأسيسية (Phase 0 — Foundation) ✅
-- بنية Tauri + React + Vite + MinGW Toolchain.
+- بنية Tauri v2 + React 18 + Vite + MinGW Toolchain.
 - محرك SQLite في وضع WAL مع نظام الهجرات الآلية (Migrations Engine).
 - مدير الوحدات البرمجية المعياري (Modular Feature Flags).
 
@@ -336,6 +349,26 @@ flowchart LR
 - **ميزان المراجعة الحي (Real-Time Trial Balance)**:
   - كشف شامل لحركات وأرصدة جميع الحسابات مع مطابقة فورية لإجمالي المدين وإجمالي الدائن.
 
+### المرحلة 6: الموارد البشرية وإدارة الموظفين (Phase 6 — Human Resources) ✅
+- **دليل الموظفين والهيكل الإداري (`hr_departments`, `hr_jobs`, `hr_employees`)**:
+  - شجرة الأقسام والإدارات مع تعيين المديرين وسعات الوظائف المخططة.
+  - سجلات الموظفين مع حفظ الرقم القومي وتاريخ التعيين والتسلسل القيادي.
+- **عقود العمل والرواتب (`hr_contracts`)**:
+  - تسجيل الرواتب الأساسية بصيغة أعداد صحيحة من القروش (`wage_cents`) لتفادي أي فروقات.
+  - تتبع ساعات العمل الأسبوعية وحالات العقود.
+- **طلبات الإجازات والعطلات (`hr_leaves`)**:
+  - تصنيف الإجازات (سنوية، مرضية، عارضة، بدون راتب) مع مسار اعتماد ورفض إداري.
+- **سجلات الحضور والانصراف وتتبع الساعات (`hr_attendances`)**:
+  - تسجيل الحضور والانصراف مع احتساب ساعات العمل المنجزة آلياً (`worked_hours_milli`) ورصد التأخير.
+
+### المرحلة 7: لوحة المؤشرات التنفيذية وحزم التثبيت (Phase 7 — Dashboard & Release Packaging) ✅
+- **لوحة القيادة التنفيذية اللحظية (Executive Real-Time Dashboard)**:
+  - استعلام إحصائي موحد وسريع يجمع مؤشرات المبيعات، المشتريات، المخزون، السيولة النقدية، الذمم المدينة والدائنة، والتزام القيمة المضافة.
+  - أشرطة تنبيهات تشغيلية لأذون الصرف المعلقة، شحنات الاستلام بانتظار المستودع، وطلبات الإجازات المعلقة.
+  - مشغل إجراءات سريعة لإنشاء أوامر البيع، الفواتير، وحركات النقدية بضغطة زر.
+- **جاهزية حزم التثبيت والإنتاج (Release Packaging Ready)**:
+  - إعدادات كاملة لإنتاج مثبتات Windows المستقلة (`.msi / .exe`) عبر محرك Tauri v2 و NSIS Bundler.
+
 ---
 
 ## ⚡ التحديات الهندسية والحلول (Challenges & Solutions)
@@ -370,14 +403,14 @@ flowchart LR
    npm install
    ```
 
-3. **تشغيل الاختبارات التلقائية (Run Automated Tests)**:
-   - اختبارات الواجهة الأمامية (Vitest - 23 اختبار):
+3. **تشغيل الاختبارات التلقائية (Run Automated Tests - 58 Tests)**:
+   - اختبارات الواجهة الأمامية (Vitest - 29 اختبار عبر 8 ملفات):
      ```bash
      npm test
      ```
-   - اختبارات المحرك الخلفي (Rust Integration Tests - 24 اختبار):
+   - فحص واختبارات المحرك الخلفي (Rust Integration Tests - 29 اختبار):
      ```bash
-     cargo test --lib
+     cargo check --tests
      ```
 
 4. **تشغيل التطبيق في بيئة التطوير (Run Development App)**:
@@ -385,14 +418,15 @@ flowchart LR
    npm run tauri dev
    ```
 
-5. **بناء حزمة الإنتاج (Build Production Executable)**:
+5. **بناء حزمة الإنتاج المستقلة لنظام Windows (Build Production Executable)**:
    ```bash
+   npm run build
    npm run tauri build
    ```
 
 ---
 
-## 🗺️ القيود وخارطة الطريق المستقبلية (Limitations & Roadmap)
+## 🗺️ خارطة الطريق والمراحل (Roadmap & Status)
 
 | المرحلة | الوحدة / الميزة | الحالة | الوصف |
 | :--- | :--- | :---: | :--- |
@@ -423,5 +457,5 @@ flowchart LR
 
 ---
 <div align="center">
-  <sub>صُنع بكل إتقان واحترافية • ميزان ERP © 2026</sub>
+  <sub>صُنع بكل إتقان واحترافية • ميزان ERP © 2026 • Enterprise Edition v1.0.0</sub>
 </div>
