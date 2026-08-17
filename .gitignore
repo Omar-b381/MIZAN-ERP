@@ -46,5 +46,6 @@ Thumbs.db
 # Internal Admin Tools & License Issuer (Local only - never pushed)
 tools/
 *.mizan
+*.bin
 
 

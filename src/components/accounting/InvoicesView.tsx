@@ -11,6 +11,8 @@ import {
   X,
   PlusCircle,
   TrendingUp,
+  Printer,
+  Archive,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
@@ -23,6 +25,7 @@ import {
   MoveType,
 } from '../../types';
 import { formatCurrency } from '../../lib/utils';
+import { PrintDocumentModal, PrintableDocumentData } from '../printing/PrintDocumentModal';
 
 export const InvoicesView: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -37,6 +40,8 @@ export const InvoicesView: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [activeInvoiceForPayment, setActiveInvoiceForPayment] = useState<AccountMove | null>(null);
+  const [activeInvoiceForPrint, setActiveInvoiceForPrint] = useState<PrintableDocumentData | null>(null);
+  const [isBatchExporting, setIsBatchExporting] = useState(false);
 
   const [formData, setFormData] = useState<CreateInvoiceInput>({
     company_id: activeCompanyId,
@@ -247,6 +252,83 @@ export const InvoicesView: React.FC = () => {
     }
   };
 
+  const handlePrintInvoice = async (invoice: AccountMove) => {
+    try {
+      const detail = await api.getMove(invoice.id);
+      const invoiceLines = (detail?.lines || []).filter(
+        (l) => l.product_id !== null || (l.account_code && !['1030', '2010', '2020', '2025'].includes(l.account_code))
+      );
+
+      const printableLines = invoiceLines.length > 0
+        ? invoiceLines.map((l) => ({
+            id: l.id,
+            name: l.name || l.product_name || 'بند فاتورة',
+            quantity: (l.quantity_milli || 1000) / 1000,
+            price_unit: (l.price_unit_cents || 0) / 100,
+            tax_rate: (l.tax_rate_milli || 14000) / 1000,
+            subtotal: (l.price_unit_cents && l.quantity_milli)
+              ? ((l.price_unit_cents * l.quantity_milli) / 100000)
+              : Math.abs(l.balance_cents) / 100,
+          }))
+        : [
+            {
+              id: 1,
+              name: invoice.note || 'إجمالي بنود الفاتورة',
+              quantity: 1,
+              price_unit: invoice.amount_untaxed_cents / 100,
+              tax_rate: 14,
+              subtotal: invoice.amount_untaxed_cents / 100,
+            },
+          ];
+
+      setActiveInvoiceForPrint({
+        docType: invoice.move_type,
+        docNumber: invoice.name,
+        date: invoice.date,
+        dueDate: invoice.invoice_date_due,
+        origin: invoice.origin,
+        paymentState: invoice.payment_state,
+        companyName: 'شركة ميزان للحلول والتجارة المؤسسية',
+        companyTaxId: '100-245-890',
+        companyCommercialReg: 'س.ت 44820',
+        companyPhone: '+20 2 2456 7890',
+        companyAddress: 'القاهرة، جمهورية مصر العربية',
+        partnerName: invoice.partner_name || `طرف #${invoice.partner_id}`,
+        currency: invoice.currency || 'EGP',
+        lines: printableLines,
+        amountUntaxed: invoice.amount_untaxed_cents / 100,
+        amountTax: invoice.amount_tax_cents / 100,
+        amountTotal: invoice.amount_total_cents / 100,
+        note: invoice.note,
+      });
+    } catch (err) {
+      console.error('Failed to load invoice for printing:', err);
+    }
+  };
+
+  const handleBatchZipExport = async () => {
+    try {
+      setIsBatchExporting(true);
+      const files = filteredMoves.map((m) => {
+        const content = `====================================================\nمنظومة ميزان ERP - مستند مالي\n====================================================\nرقم الفاتورة: ${m.name}\nالنوع: ${m.move_type}\nالطرف: ${m.partner_name || m.partner_id}\nتاريخ التحرير: ${m.date}\nتاريخ الاستحقاق: ${m.invoice_date_due || '-'}\nالمبلغ قبل الضريبة: ${(m.amount_untaxed_cents / 100).toFixed(2)} ${m.currency}\nالضريبة: ${(m.amount_tax_cents / 100).toFixed(2)} ${m.currency}\nالإجمالي الصافي: ${(m.amount_total_cents / 100).toFixed(2)} ${m.currency}\nحالة السداد: ${m.payment_state}\nملاحظات: ${m.note || '-'}\n`;
+        return {
+          filename: `${m.name.replace(/\//g, '_')}.txt`,
+          content_text: content,
+          content_base64: null,
+        };
+      });
+
+      await api.exportBatchZip({
+        zip_filename: `invoices_batch_${new Date().toISOString().split('T')[0]}.zip`,
+        files,
+      });
+    } catch (err) {
+      console.error('Failed to export batch zip:', err);
+    } finally {
+      setIsBatchExporting(false);
+    }
+  };
+
   const filteredMoves = moves.filter((m) => {
     if (!searchQuery.trim()) return true;
     const term = searchQuery.toLowerCase();
@@ -284,7 +366,16 @@ export const InvoicesView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={handleBatchZipExport}
+            disabled={isBatchExporting || filteredMoves.length === 0}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors shadow-sm"
+            title="تصدير جميع الفواتير المحددة في أرشيف مضغوط ZIP"
+          >
+            <Archive className="w-4 h-4" />
+            <span>{isBatchExporting ? 'جاري التحزيم...' : 'تصدير مجمع (ZIP)'}</span>
+          </button>
           <button
             onClick={() => handleOpenCreate('out_invoice')}
             className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
@@ -483,6 +574,13 @@ export const InvoicesView: React.FC = () => {
                     </td>
                     <td className="py-3.5 px-4 text-center">
                       <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => handlePrintInvoice(m)}
+                          className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
+                          title="معاينة وطباعة الفاتورة"
+                        >
+                          <Printer className="w-3.5 h-3.5 text-indigo-600" />
+                        </button>
                         {m.state === 'draft' && (
                           <button
                             onClick={() => handlePostMove(m.id)}
@@ -872,6 +970,14 @@ export const InvoicesView: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Document Print Modal */}
+      {activeInvoiceForPrint && (
+        <PrintDocumentModal
+          document={activeInvoiceForPrint}
+          onClose={() => setActiveInvoiceForPrint(null)}
+        />
       )}
     </div>
   );

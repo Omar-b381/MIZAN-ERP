@@ -14,6 +14,7 @@ pub struct SaleOrder {
     pub company_id: i64,
     pub name: String,
     pub partner_id: i64,
+    #[sqlx(default)]
     pub partner_name: Option<String>,
     pub date_order: String,
     pub validity_date: Option<String>,
@@ -583,7 +584,7 @@ pub async fn confirm_sale_order(
                 r#"
                 INSERT INTO stock_moves (
                     company_id, picking_id, product_id, name,
-                    product_uom_qty_milli, product_uom_id,
+                    quantity_milli, uom_id,
                     src_location_id, dest_location_id, state, reference
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', ?)
                 "#,

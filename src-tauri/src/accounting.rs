@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sqlx::{Result, SqlitePool};
+use sqlx::{Result, SqlitePool, Row};
 use chrono::Datelike;
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]
@@ -32,8 +32,10 @@ pub struct AccountMove {
     pub name: String,
     pub date: String,
     pub journal_id: i64,
+    #[sqlx(default)]
     pub journal_name: Option<String>,
     pub partner_id: Option<i64>,
+    #[sqlx(default)]
     pub partner_name: Option<String>,
     pub move_type: String, // 'entry', 'out_invoice', 'in_invoice', 'out_refund', 'in_refund'
     pub state: String,     // 'draft', 'posted', 'cancelled'
@@ -639,15 +641,15 @@ pub async fn post_move(pool: &SqlitePool, move_id: i64) -> Result<AccountMoveDet
     }
 
     // HARD INVARIANT: Validate SUM(debit_cents) == SUM(credit_cents)
-    let sums = sqlx::query_as::<_, (i64, i64)>(
-        "SELECT COALESCE(SUM(debit_cents), 0), COALESCE(SUM(credit_cents), 0) FROM account_move_lines WHERE move_id = ?",
+    let sums_row = sqlx::query(
+        "SELECT COALESCE(SUM(debit_cents), 0) as total_debit, COALESCE(SUM(credit_cents), 0) as total_credit FROM account_move_lines WHERE move_id = ?",
     )
     .bind(move_id)
     .fetch_one(&mut *tx)
     .await?;
 
-    let total_debit = sums.0;
-    let total_credit = sums.1;
+    let total_debit: i64 = sums_row.try_get("total_debit").unwrap_or(0);
+    let total_credit: i64 = sums_row.try_get("total_credit").unwrap_or(0);
 
     if total_debit != total_credit {
         return Err(sqlx::Error::Protocol(format!(

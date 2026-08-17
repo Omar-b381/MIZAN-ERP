@@ -8,6 +8,7 @@ pub struct PurchaseOrder {
     pub company_id: i64,
     pub name: String,
     pub partner_id: i64,
+    #[sqlx(default)]
     pub partner_name: Option<String>,
     pub date_order: String,
     pub date_planned: Option<String>,
@@ -534,20 +535,20 @@ pub async fn confirm_purchase_order(
             sqlx::query(
                 r#"
                 INSERT INTO stock_moves (
-                    company_id, picking_id, product_id, product_uom_qty_milli,
-                    product_uom_id, src_location_id, dest_location_id,
-                    state, name, origin
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'confirmed', ?, ?)
+                    company_id, picking_id, product_id, name,
+                    quantity_milli, uom_id, src_location_id, dest_location_id,
+                    state, reference
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', ?)
                 "#,
             )
             .bind(order.company_id)
             .bind(picking_id)
             .bind(product_id)
+            .bind(line_name)
             .bind(qty_milli)
             .bind(uom_id)
             .bind(src_loc_id)
             .bind(dest_loc_id)
-            .bind(line_name)
             .bind(&order.name)
             .execute(&mut *tx)
             .await?;

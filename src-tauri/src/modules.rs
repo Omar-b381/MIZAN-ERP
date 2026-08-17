@@ -48,11 +48,7 @@ pub async fn set_module_status(
     active: bool,
 ) -> Result<ModuleToggleResult, sqlx::Error> {
     if module_key == "core" && !active {
-        return Ok(ModuleToggleResult {
-            key: module_key.to_string(),
-            is_active: true,
-            message: "الوحدة الأساسية (Core) لا يمكن تعطيلها".to_string(),
-        });
+        return Err(sqlx::Error::Protocol("الوحدة الأساسية (Core) لا يمكن تعطيلها".into()));
     }
 
     if active {

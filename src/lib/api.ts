@@ -62,6 +62,18 @@ import {
   BackupInfo,
   RestoreResult,
   DiagnosticExportResult,
+  TrialBalanceItem,
+  ProfitAndLossReport,
+  GeneralLedgerAccount,
+  SalesReportRow,
+  PurchasesReportRow,
+  PartnerStatementReport,
+  PartnerAgingItem,
+  StockOnHandReportItem,
+  StockMovementReportItem,
+  LowStockReportItem,
+  ExportReportRequest,
+  BatchZipExportRequest,
 } from '../types';
 
 let mockModules: ModuleRecord[] = [
@@ -2369,4 +2381,30 @@ export const api = {
     invokeTauri<RestoreResult>('cmd_restore_backup', { backup_file_path, custom_backup_folder }),
   exportDiagnostics: (export_dest: string) =>
     invokeTauri<DiagnosticExportResult>('cmd_export_diagnostics', { export_dest }),
+
+  // Phase 9: Printing, Reports & Data Export
+  getTrialBalanceFiltered: (company_id: number, start_date?: string, end_date?: string) =>
+    invokeTauri<TrialBalanceItem[]>('cmd_get_trial_balance_filtered', { company_id, start_date, end_date }),
+  getProfitAndLoss: (company_id: number, start_date: string, end_date: string) =>
+    invokeTauri<ProfitAndLossReport>('cmd_get_profit_and_loss', { company_id, start_date, end_date }),
+  getGeneralLedger: (company_id: number, account_id?: number, start_date?: string, end_date?: string) =>
+    invokeTauri<GeneralLedgerAccount[]>('cmd_get_general_ledger', { company_id, account_id, start_date, end_date }),
+  getSalesReport: (company_id: number, start_date: string, end_date: string, group_by?: string, partner_id?: number, product_id?: number) =>
+    invokeTauri<SalesReportRow[]>('cmd_get_sales_report', { company_id, start_date, end_date, group_by, partner_id, product_id }),
+  getPurchasesReport: (company_id: number, start_date: string, end_date: string, group_by?: string, partner_id?: number, product_id?: number) =>
+    invokeTauri<PurchasesReportRow[]>('cmd_get_purchases_report', { company_id, start_date, end_date, group_by, partner_id, product_id }),
+  getPartnerStatement: (company_id: number, partner_id: number, start_date: string, end_date: string) =>
+    invokeTauri<PartnerStatementReport>('cmd_get_partner_statement', { company_id, partner_id, start_date, end_date }),
+  getPartnerAging: (company_id: number, partner_type: string, as_of_date: string) =>
+    invokeTauri<PartnerAgingItem[]>('cmd_get_partner_aging', { company_id, partner_type, as_of_date }),
+  getStockOnHandReport: (company_id: number, warehouse_id?: number, location_id?: number) =>
+    invokeTauri<StockOnHandReportItem[]>('cmd_get_stock_on_hand_report', { company_id, warehouse_id, location_id }),
+  getStockMovementLedger: (company_id: number, product_id?: number, start_date?: string, end_date?: string) =>
+    invokeTauri<StockMovementReportItem[]>('cmd_get_stock_movement_ledger', { company_id, product_id, start_date, end_date }),
+  getLowStockReport: (company_id: number) =>
+    invokeTauri<LowStockReportItem[]>('cmd_get_low_stock_report', { company_id }),
+  exportReportToXlsx: (request: ExportReportRequest) =>
+    invokeTauri<string>('cmd_export_report_to_xlsx', { request }),
+  exportBatchZip: (request: BatchZipExportRequest) =>
+    invokeTauri<string>('cmd_export_batch_zip', { request }),
 };

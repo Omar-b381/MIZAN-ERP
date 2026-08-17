@@ -162,10 +162,9 @@ INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES
 INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES
     (3, 9);
 
--- Seed Default Admin User: admin / admin123 (salt: mizan_salt_2026)
--- Hash for 'admin123' + 'mizan_salt_2026' via SHA256: 8f9b... (computed standard SHA256)
+-- Seed Default Admin User: admin / admin (salt: mizan_salt_2026)
 INSERT OR IGNORE INTO users (id, company_id, username, email, password_hash, salt, full_name, is_active)
-VALUES (1, 1, 'admin', 'admin@mizan.local', '7f8f90ab577b8b2ef40b8a4f6cfc7a72d7386d4e5f75e7a917b8f9e612fa481e', 'mizan_salt_2026', 'مدير النظام', 1);
+VALUES (1, 1, 'admin', 'admin@mizan.local', 'ada38ed997d89b1aaa96f55304608e4d83d57a4cd8f89ca5138a469c4b2879a9', 'mizan_salt_2026', 'مدير النظام', 1);
 
 -- Link Admin user to Admin role
 INSERT OR IGNORE INTO user_roles (user_id, role_id) VALUES (1, 1);

@@ -897,3 +897,194 @@ export interface DiagnosticExportResult {
   total_entries: number;
 }
 
+// ----------------------------------------------------
+// Phase 9: Reports & Data Export Types
+// ----------------------------------------------------
+
+export interface TrialBalanceItem {
+  account_id: number;
+  account_code: string;
+  account_name: string;
+  account_type: string;
+  debit_sum_cents: number;
+  credit_sum_cents: number;
+  net_balance_cents: number;
+}
+
+export interface PnLLineItem {
+  account_id: number;
+  code: string;
+  name: string;
+  amount_cents: number;
+}
+
+export interface ProfitAndLossReport {
+  start_date: string;
+  end_date: string;
+  revenues: PnLLineItem[];
+  total_revenue_cents: number;
+  cogs: PnLLineItem[];
+  total_cogs_cents: number;
+  gross_profit_cents: number;
+  operating_expenses: PnLLineItem[];
+  total_operating_expenses_cents: number;
+  net_profit_cents: number;
+}
+
+export interface GeneralLedgerLine {
+  move_id: number;
+  move_name: string;
+  date: string;
+  account_id: number;
+  account_code: string;
+  account_name: string;
+  partner_id?: number | null;
+  partner_name?: string | null;
+  label: string;
+  debit_cents: number;
+  credit_cents: number;
+  balance_cents: number;
+}
+
+export interface GeneralLedgerAccount {
+  account_id: number;
+  account_code: string;
+  account_name: string;
+  opening_balance_cents: number;
+  lines: GeneralLedgerLine[];
+  total_debit_cents: number;
+  total_credit_cents: number;
+  closing_balance_cents: number;
+}
+
+export interface SalesReportRow {
+  period_group: string;
+  partner_id?: number | null;
+  partner_name?: string | null;
+  product_id?: number | null;
+  product_name?: string | null;
+  product_sku?: string | null;
+  qty_sold_milli: number;
+  amount_untaxed_cents: number;
+  amount_tax_cents: number;
+  amount_total_cents: number;
+  orders_count: number;
+}
+
+export interface PurchasesReportRow {
+  period_group: string;
+  partner_id?: number | null;
+  partner_name?: string | null;
+  product_id?: number | null;
+  product_name?: string | null;
+  product_sku?: string | null;
+  qty_purchased_milli: number;
+  amount_untaxed_cents: number;
+  amount_tax_cents: number;
+  amount_total_cents: number;
+  orders_count: number;
+}
+
+export interface PartnerStatementLine {
+  date: string;
+  doc_type: string;
+  reference: string;
+  description: string;
+  debit_cents: number;
+  credit_cents: number;
+  running_balance_cents: number;
+}
+
+export interface PartnerStatementReport {
+  partner_id: number;
+  partner_name: string;
+  partner_type: string;
+  tax_id?: string | null;
+  start_date: string;
+  end_date: string;
+  opening_balance_cents: number;
+  total_debit_cents: number;
+  total_credit_cents: number;
+  closing_balance_cents: number;
+  lines: PartnerStatementLine[];
+}
+
+export interface PartnerAgingItem {
+  partner_id: number;
+  partner_name: string;
+  phone?: string | null;
+  bucket_0_30_cents: number;
+  bucket_31_60_cents: number;
+  bucket_61_90_cents: number;
+  bucket_90_plus_cents: number;
+  total_outstanding_cents: number;
+}
+
+export interface StockOnHandReportItem {
+  product_id: number;
+  default_code: string;
+  product_name: string;
+  category_name: string;
+  location_id: number;
+  location_name: string;
+  warehouse_name: string;
+  quantity_on_hand_milli: number;
+  uom_name: string;
+  cost_price_cents: number;
+  total_valuation_cents: number;
+}
+
+export interface StockMovementReportItem {
+  move_id: number;
+  reference: string;
+  date: string;
+  product_id: number;
+  default_code: string;
+  product_name: string;
+  src_location_name: string;
+  dest_location_name: string;
+  quantity_milli: number;
+  uom_name: string;
+  state: string;
+}
+
+export interface LowStockReportItem {
+  product_id: number;
+  default_code: string;
+  product_name: string;
+  category_name: string;
+  current_stock_milli: number;
+  min_stock_milli: number;
+  max_stock_milli: number;
+  reorder_qty_milli: number;
+  uom_name: string;
+}
+
+export interface ExportColumn {
+  key: string;
+  title: string;
+  data_type: 'text' | 'number' | 'currency' | 'date' | 'percent';
+  width?: number | null;
+}
+
+export interface ExportReportRequest {
+  title: string;
+  subtitle?: string | null;
+  company_name: string;
+  date_range?: string | null;
+  columns: ExportColumn[];
+  rows: Record<string, any>[];
+  is_rtl: boolean;
+}
+
+export interface BatchZipFileItem {
+  filename: string;
+  content_base64?: string | null;
+  content_text?: string | null;
+}
+
+export interface BatchZipExportRequest {
+  zip_filename: string;
+  files: BatchZipFileItem[];
+}
+

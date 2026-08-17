@@ -1,5 +1,5 @@
 use crate::{
-    accounting, activity, auth, backup, companies, dashboard, db, diagnostics, hr, inventory, licensing, modules, partners, products, purchases, rbac, sales, settings,
+    accounting, activity, auth, backup, companies, dashboard, db, diagnostics, export, hr, inventory, licensing, modules, partners, products, purchases, rbac, reports, sales, settings,
 };
 use sqlx::SqlitePool;
 
@@ -1477,7 +1477,7 @@ async fn test_evaluation_trial_lifecycle() {
 
     // 2. Simulate trial expiry (set trial_started_at to 10 days ago)
     let past_date = (chrono::Local::now() - chrono::Duration::days(10)).to_rfc3339();
-    sqlx::query("UPDATE system_settings SET value = ? WHERE key = 'trial_started_at'")
+    sqlx::query("UPDATE settings SET value = ? WHERE key = 'trial_started_at' AND company_id = 1")
         .bind(past_date)
         .execute(&pool)
         .await
@@ -1493,6 +1493,213 @@ async fn test_evaluation_trial_lifecycle() {
     let toggle_res = modules::set_module_status(&pool, "sales", true).await.unwrap();
     assert!(!toggle_res.is_active);
     assert!(toggle_res.message.contains("غير متاحة"));
+}
+
+// ----------------------------------------------------
+// Phase 9 Reports & Data Export Integration Tests
+// ----------------------------------------------------
+
+#[tokio::test]
+async fn test_financial_reports_trial_balance_and_pnl() {
+    let pool = setup_test_db().await;
+
+    // 1. Post a Customer Invoice (Debit AR: 114,000 cents, Credit Sales: 100,000 cents, Credit VAT: 14,000 cents)
+    let invoice = accounting::create_invoice(
+        &pool,
+        accounting::CreateInvoiceInput {
+            company_id: 1,
+            partner_id: 2,
+            move_type: "out_invoice".to_string(),
+            date: Some("2026-08-10".to_string()),
+            invoice_date_due: Some("2026-09-10".to_string()),
+            currency: Some("EGP".to_string()),
+            origin: None,
+            note: Some("فاتورة مبيعات لاختبار التقارير".to_string()),
+            lines: vec![accounting::CreateInvoiceLineInput {
+                product_id: Some(1),
+                account_id: Some(10), // 4010 Sales Revenue
+                name: "Dell Latitude 5530".to_string(),
+                quantity_milli: 1000,
+                price_unit_cents: 100000,
+                discount_percent_milli: None,
+                tax_rate_milli: Some(14000), // 14%
+            }],
+        },
+    )
+    .await
+    .unwrap();
+
+    let posted_inv = accounting::post_move(&pool, invoice.r#move.id).await.unwrap();
+    assert_eq!(posted_inv.r#move.state, "posted");
+
+    // 2. Query Trial Balance Filtered
+    let tb = reports::get_trial_balance_filtered(
+        &pool,
+        1,
+        Some("2026-08-01".to_string()),
+        Some("2026-08-31".to_string()),
+    )
+    .await
+    .unwrap();
+    assert!(!tb.is_empty());
+    let ar_row = tb.iter().find(|r| r.account_code == "1030").unwrap();
+    // Seed invoice 1 (7,980,000 cents) + new invoice (114,000 cents) = 8,094,000 cents
+    assert_eq!(ar_row.debit_sum_cents, 8094000);
+    assert_eq!(ar_row.net_balance_cents, 8094000);
+
+    // 3. Query Profit & Loss (Seed 7,000,000 + new 100,000 = 7,100,000)
+    let pnl = reports::get_profit_and_loss(&pool, 1, "2026-08-01", "2026-08-31").await.unwrap();
+    assert_eq!(pnl.total_revenue_cents, 7100000);
+    assert_eq!(pnl.net_profit_cents, 7100000);
+}
+
+#[tokio::test]
+async fn test_general_ledger_running_balances() {
+    let pool = setup_test_db().await;
+
+    // Post an invoice
+    let invoice = accounting::create_invoice(
+        &pool,
+        accounting::CreateInvoiceInput {
+            company_id: 1,
+            partner_id: 2,
+            move_type: "out_invoice".to_string(),
+            date: Some("2026-08-15".to_string()),
+            invoice_date_due: Some("2026-09-15".to_string()),
+            currency: Some("EGP".to_string()),
+            origin: None,
+            note: None,
+            lines: vec![accounting::CreateInvoiceLineInput {
+                product_id: Some(1),
+                account_id: Some(10), // 4010 Sales Revenue
+                name: "Test item".to_string(),
+                quantity_milli: 1000,
+                price_unit_cents: 50000,
+                discount_percent_milli: None,
+                tax_rate_milli: Some(14000),
+            }],
+        },
+    )
+    .await
+    .unwrap();
+    accounting::post_move(&pool, invoice.r#move.id).await.unwrap();
+
+    // Query General Ledger for Revenue Account (id 10)
+    let gl = reports::get_general_ledger(&pool, 1, Some(10), "2026-08-01", "2026-08-31").await.unwrap();
+    assert_eq!(gl.len(), 1);
+    assert_eq!(gl[0].account_code, "4010");
+    assert!(!gl[0].lines.is_empty());
+}
+
+#[tokio::test]
+async fn test_partner_statement_and_aging_buckets() {
+    let pool = setup_test_db().await;
+
+    // 1. Post Customer Invoice for partner 2 (due in past to test aging)
+    let invoice = accounting::create_invoice(
+        &pool,
+        accounting::CreateInvoiceInput {
+            company_id: 1,
+            partner_id: 2,
+            move_type: "out_invoice".to_string(),
+            date: Some("2026-06-01".to_string()),
+            invoice_date_due: Some("2026-06-15".to_string()),
+            currency: Some("EGP".to_string()),
+            origin: None,
+            note: Some("فاتورة قديمة لاختبار أعمار الديون".to_string()),
+            lines: vec![accounting::CreateInvoiceLineInput {
+                product_id: Some(1),
+                account_id: Some(10),
+                name: "Dell Laptop".to_string(),
+                quantity_milli: 1000,
+                price_unit_cents: 100000,
+                discount_percent_milli: None,
+                tax_rate_milli: None,
+            }],
+        },
+    )
+    .await
+    .unwrap();
+    accounting::post_move(&pool, invoice.r#move.id).await.unwrap();
+
+    // 2. Partner Statement
+    let stmt = reports::get_partner_statement(&pool, 1, 2, "2026-01-01", "2026-12-31").await.unwrap();
+    assert_eq!(stmt.partner_name, "مؤسسة النور للتجزئة");
+    assert!(stmt.closing_balance_cents > 0);
+
+    // 3. Partner Aging Report as of 2026-08-17 (63 days past due date 2026-06-15 -> bucket 61_90)
+    let aging = reports::get_partner_aging(&pool, 1, "customer", "2026-08-17").await.unwrap();
+    assert!(!aging.is_empty());
+    let p_row = aging.iter().find(|r| r.partner_id == 2).unwrap();
+    assert!(p_row.total_outstanding_cents > 0);
+    assert_eq!(p_row.bucket_61_90_cents, 114000);
+}
+
+#[tokio::test]
+async fn test_native_excel_and_zip_export() {
+    // 1. Test Excel Generation
+    let req = export::ExportReportRequest {
+        title: "تقرير ميزان المراجعة التجريبي".to_string(),
+        subtitle: Some("للفترة من 2026-01-01 إلى 2026-12-31".to_string()),
+        company_name: "شركة ميزان للتجارة".to_string(),
+        date_range: Some("2026-01-01 - 2026-12-31".to_string()),
+        columns: vec![
+            export::ExportColumn {
+                key: "code".to_string(),
+                title: "رمز الحساب".to_string(),
+                data_type: "text".to_string(),
+                width: None,
+            },
+            export::ExportColumn {
+                key: "name".to_string(),
+                title: "اسم الحساب".to_string(),
+                data_type: "text".to_string(),
+                width: None,
+            },
+            export::ExportColumn {
+                key: "debit".to_string(),
+                title: "مدين (ج.م)".to_string(),
+                data_type: "currency".to_string(),
+                width: None,
+            },
+            export::ExportColumn {
+                key: "credit".to_string(),
+                title: "دائن (ج.م)".to_string(),
+                data_type: "currency".to_string(),
+                width: None,
+            },
+        ],
+        rows: vec![
+            serde_json::json!({
+                "code": "1010",
+                "name": "الخزينة الرئيسية",
+                "debit": 50000.0,
+                "credit": 0.0
+            }),
+            serde_json::json!({
+                "code": "1030",
+                "name": "العملاء والمدينون",
+                "debit": 12500.50,
+                "credit": 0.0
+            }),
+        ],
+        is_rtl: true,
+    };
+
+    let xlsx_bytes = export::generate_xlsx(&req).unwrap();
+    assert!(!xlsx_bytes.is_empty());
+    // Verify PK zip header of .xlsx file
+    assert_eq!(&xlsx_bytes[0..4], b"PK\x03\x04");
+
+    // 2. Test ZIP Archiving
+    let files = vec![
+        ("INV-2026-00001.pdf".to_string(), b"%PDF-1.4 Mock Invoice".to_vec()),
+        ("INV-2026-00002.pdf".to_string(), b"%PDF-1.4 Mock Invoice 2".to_vec()),
+    ];
+
+    let zip_bytes = export::create_zip_archive(&files).unwrap();
+    assert!(!zip_bytes.is_empty());
+    assert_eq!(&zip_bytes[0..4], b"PK\x03\x04");
 }
 
 

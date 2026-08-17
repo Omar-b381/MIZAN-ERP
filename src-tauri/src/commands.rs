@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager, State};
-use crate::{accounting, activity, auth, backup, companies, dashboard, diagnostics, hr, inventory, licensing, modules, partners, products, purchases, rbac, sales, settings, AppState};
+use crate::{accounting, activity, auth, backup, companies, dashboard, diagnostics, export, hr, inventory, licensing, modules, partners, products, purchases, rbac, reports, sales, settings, AppState};
 
 // ----------------------------------------------------
 // Modules Commands
@@ -1239,3 +1239,154 @@ pub async fn cmd_activate_license(
 ) -> Result<licensing::TrialStatus, String> {
     licensing::activate_license(&state.pool, &license_content).await
 }
+
+// ----------------------------------------------------
+// Phase 9: Reports & Data Export Commands
+// ----------------------------------------------------
+
+#[tauri::command]
+pub async fn cmd_get_trial_balance_filtered(
+    state: State<'_, AppState>,
+    company_id: i64,
+    start_date: Option<String>,
+    end_date: Option<String>,
+) -> Result<Vec<reports::TrialBalanceItem>, String> {
+    reports::get_trial_balance_filtered(&state.pool, company_id, start_date, end_date)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_get_profit_and_loss(
+    state: State<'_, AppState>,
+    company_id: i64,
+    start_date: String,
+    end_date: String,
+) -> Result<reports::ProfitAndLossReport, String> {
+    reports::get_profit_and_loss(&state.pool, company_id, &start_date, &end_date)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_get_general_ledger(
+    state: State<'_, AppState>,
+    company_id: i64,
+    account_id: Option<i64>,
+    start_date: String,
+    end_date: String,
+) -> Result<Vec<reports::GeneralLedgerAccountReport>, String> {
+    reports::get_general_ledger(&state.pool, company_id, account_id, &start_date, &end_date)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_get_sales_report(
+    state: State<'_, AppState>,
+    company_id: i64,
+    group_by: String,
+    start_date: String,
+    end_date: String,
+) -> Result<Vec<reports::SalesPurchasesReportItem>, String> {
+    reports::get_sales_report(&state.pool, company_id, &group_by, &start_date, &end_date)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_get_purchases_report(
+    state: State<'_, AppState>,
+    company_id: i64,
+    group_by: String,
+    start_date: String,
+    end_date: String,
+) -> Result<Vec<reports::SalesPurchasesReportItem>, String> {
+    reports::get_purchases_report(&state.pool, company_id, &group_by, &start_date, &end_date)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_get_partner_statement(
+    state: State<'_, AppState>,
+    company_id: i64,
+    partner_id: i64,
+    start_date: String,
+    end_date: String,
+) -> Result<reports::PartnerStatementReport, String> {
+    reports::get_partner_statement(&state.pool, company_id, partner_id, &start_date, &end_date)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_get_partner_aging(
+    state: State<'_, AppState>,
+    company_id: i64,
+    partner_type: String,
+    as_of_date: String,
+) -> Result<Vec<reports::PartnerAgingItem>, String> {
+    reports::get_partner_aging(&state.pool, company_id, &partner_type, &as_of_date)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_get_stock_on_hand_report(
+    state: State<'_, AppState>,
+    company_id: i64,
+    warehouse_id: Option<i64>,
+) -> Result<Vec<reports::StockOnHandReportItem>, String> {
+    reports::get_stock_on_hand_report(&state.pool, company_id, warehouse_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_get_stock_movement_ledger(
+    state: State<'_, AppState>,
+    company_id: i64,
+    product_id: Option<i64>,
+    start_date: String,
+    end_date: String,
+) -> Result<Vec<reports::StockMovementLedgerItem>, String> {
+    reports::get_stock_movement_ledger(&state.pool, company_id, product_id, &start_date, &end_date)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_get_low_stock_report(
+    state: State<'_, AppState>,
+    company_id: i64,
+) -> Result<Vec<reports::LowStockReportItem>, String> {
+    reports::get_low_stock_report(&state.pool, company_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn cmd_export_report_excel(request: export::ExportReportRequest) -> Result<Vec<u8>, String> {
+    export::generate_xlsx(&request)
+}
+
+#[tauri::command]
+pub fn cmd_export_documents_batch_zip(request: export::BatchZipExportRequest) -> Result<Vec<u8>, String> {
+    let mut files: Vec<(String, Vec<u8>)> = Vec::new();
+    for f in request.files {
+        let bytes = if let Some(b64) = f.content_base64 {
+            use base64::Engine;
+            base64::engine::general_purpose::STANDARD
+                .decode(b64)
+                .map_err(|e| format!("Base64 decode error: {}", e))?
+        } else if let Some(txt) = f.content_text {
+            txt.into_bytes()
+        } else {
+            Vec::new()
+        };
+        files.push((f.filename, bytes));
+    }
+    export::create_zip_archive(&files)
+}
+

@@ -51,7 +51,7 @@ CREATE INDEX IF NOT EXISTS idx_purchase_order_lines_order ON purchase_order_line
 CREATE INDEX IF NOT EXISTS idx_purchase_order_lines_product ON purchase_order_lines(product_id);
 
 -- 3. Seed Permissions for Purchases
-INSERT OR IGNORE INTO permissions (name, description, module_key) VALUES
+INSERT OR IGNORE INTO permissions (key, description, module_key) VALUES
     ('purchases.view', 'عرض أوامر الشراء وطلبات عروض الأسعار', 'purchases'),
     ('purchases.create', 'إنشاء طلبات الشراء وعروض الموردين', 'purchases'),
     ('purchases.edit', 'تعديل أوامر الشراء', 'purchases'),

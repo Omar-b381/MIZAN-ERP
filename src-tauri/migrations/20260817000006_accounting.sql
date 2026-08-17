@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS account_payments (
 CREATE INDEX IF NOT EXISTS idx_account_payments_partner ON account_payments(partner_id);
 
 -- 6. Permissions for Accounting, Invoices & Payments
-INSERT OR IGNORE INTO permissions (name, description, module_key) VALUES
+INSERT OR IGNORE INTO permissions (key, description, module_key) VALUES
     ('accounting.view', 'عرض دليل الحسابات وقيود اليومية وميزان المراجعة', 'accounting'),
     ('accounting.post', 'ترحيل وتأكيد قيود اليومية', 'accounting'),
     ('invoices.view', 'عرض فواتير العملاء والموردين', 'invoices'),

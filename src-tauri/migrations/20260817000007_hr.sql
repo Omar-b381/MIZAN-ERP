@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS hr_attendances (
 CREATE INDEX IF NOT EXISTS idx_hr_attendances_emp_date ON hr_attendances(employee_id, date);
 
 -- 7. Permissions for HR Module
-INSERT OR IGNORE INTO permissions (name, description, module_key) VALUES
+INSERT OR IGNORE INTO permissions (key, description, module_key) VALUES
     ('hr.view', 'عرض دليل الموظفين والأقسام', 'employees'),
     ('hr.manage', 'إضافة وتعديل بيانات الموظفين والهيكل الإداري', 'employees'),
     ('hr.contracts', 'إدارة عقود العمل والرواتب', 'employees'),

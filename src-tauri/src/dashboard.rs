@@ -87,7 +87,7 @@ pub async fn get_dashboard_metrics(pool: &SqlitePool, company_id: i64) -> Result
         FROM stock_quantities sq
         JOIN products p ON sq.product_id = p.id
         JOIN stock_locations sl ON sq.location_id = sl.id
-        WHERE sq.company_id = ? AND sl.usage = 'internal'
+        WHERE sq.company_id = ? AND sl.location_type = 'internal'
         "#,
     )
     .bind(company_id)
@@ -126,7 +126,7 @@ pub async fn get_dashboard_metrics(pool: &SqlitePool, company_id: i64) -> Result
         FROM account_move_lines aml
         JOIN account_accounts aa ON aml.account_id = aa.id
         JOIN account_moves am ON aml.move_id = am.id
-        WHERE aml.company_id = ? AND aa.code = '1030' AND am.state = 'posted'
+        WHERE am.company_id = ? AND aa.code = '1030' AND am.state = 'posted'
         "#,
     )
     .bind(company_id)
@@ -140,7 +140,7 @@ pub async fn get_dashboard_metrics(pool: &SqlitePool, company_id: i64) -> Result
         FROM account_move_lines aml
         JOIN account_accounts aa ON aml.account_id = aa.id
         JOIN account_moves am ON aml.move_id = am.id
-        WHERE aml.company_id = ? AND aa.code = '2010' AND am.state = 'posted'
+        WHERE am.company_id = ? AND aa.code = '2010' AND am.state = 'posted'
         "#,
     )
     .bind(company_id)
@@ -154,7 +154,7 @@ pub async fn get_dashboard_metrics(pool: &SqlitePool, company_id: i64) -> Result
         FROM account_move_lines aml
         JOIN account_accounts aa ON aml.account_id = aa.id
         JOIN account_moves am ON aml.move_id = am.id
-        WHERE aml.company_id = ? AND aa.code IN ('1010', '1020') AND am.state = 'posted'
+        WHERE am.company_id = ? AND aa.code IN ('1010', '1020') AND am.state = 'posted'
         "#,
     )
     .bind(company_id)
@@ -168,7 +168,7 @@ pub async fn get_dashboard_metrics(pool: &SqlitePool, company_id: i64) -> Result
         FROM account_move_lines aml
         JOIN account_accounts aa ON aml.account_id = aa.id
         JOIN account_moves am ON aml.move_id = am.id
-        WHERE aml.company_id = ? AND aa.code = '2020' AND am.state = 'posted'
+        WHERE am.company_id = ? AND aa.code = '2020' AND am.state = 'posted'
         "#,
     )
     .bind(company_id)
@@ -181,7 +181,7 @@ pub async fn get_dashboard_metrics(pool: &SqlitePool, company_id: i64) -> Result
         FROM account_move_lines aml
         JOIN account_accounts aa ON aml.account_id = aa.id
         JOIN account_moves am ON aml.move_id = am.id
-        WHERE aml.company_id = ? AND aa.code = '2025' AND am.state = 'posted'
+        WHERE am.company_id = ? AND aa.code = '2025' AND am.state = 'posted'
         "#,
     )
     .bind(company_id)

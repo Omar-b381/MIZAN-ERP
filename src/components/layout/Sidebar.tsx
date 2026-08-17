@@ -21,6 +21,7 @@ import {
   CreditCard,
   CalendarDays,
   Clock,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { ModuleRecord } from '../../types';
@@ -45,6 +46,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ modules = [] }) => {
       label: t('nav.dashboard', 'لوحة التحكم'),
       icon: LayoutDashboard,
       view: 'dashboard',
+      permission: null,
+    },
+    {
+      id: 'reports',
+      label: t('nav.reports', 'التقارير والمستخرجات'),
+      icon: FileSpreadsheet,
+      view: 'reports',
       permission: null,
     },
     {

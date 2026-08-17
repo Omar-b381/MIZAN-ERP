@@ -119,9 +119,9 @@ pub fn verify_license_content(
 pub async fn get_license_and_trial_status(pool: &SqlitePool) -> Result<TrialStatus, sqlx::Error> {
     let current_machine_id = get_machine_id();
 
-    // 1. Check if an active license is installed in system_settings
+    // 1. Check if an active license is installed in settings
     let stored_license: Option<String> = sqlx::query_scalar(
-        "SELECT value FROM system_settings WHERE key = 'license_payload'"
+        "SELECT value FROM settings WHERE key = 'license_payload' AND company_id = 1"
     )
     .fetch_optional(pool)
     .await?;
@@ -144,7 +144,7 @@ pub async fn get_license_and_trial_status(pool: &SqlitePool) -> Result<TrialStat
 
     // 2. Evaluation Trial Engine (7 Days)
     let trial_started_str: Option<String> = sqlx::query_scalar(
-        "SELECT value FROM system_settings WHERE key = 'trial_started_at'"
+        "SELECT value FROM settings WHERE key = 'trial_started_at' AND company_id = 1"
     )
     .fetch_optional(pool)
     .await?;
@@ -154,7 +154,7 @@ pub async fn get_license_and_trial_status(pool: &SqlitePool) -> Result<TrialStat
         None => {
             let now_str = Local::now().to_rfc3339();
             sqlx::query(
-                "INSERT INTO system_settings (key, value, updated_at) VALUES ('trial_started_at', ?, DATETIME('now'))"
+                "INSERT INTO settings (key, company_id, value, updated_at) VALUES ('trial_started_at', 1, ?, DATETIME('now'))"
             )
             .bind(&now_str)
             .execute(pool)
@@ -240,10 +240,10 @@ pub async fn activate_license(
     let machine_id = get_machine_id();
     let payload = verify_license_content(license_content, &machine_id)?;
 
-    // Store in system_settings
+    // Store in settings
     sqlx::query(
-        "INSERT INTO system_settings (key, value, updated_at) VALUES ('license_payload', ?, DATETIME('now'))
-         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = DATETIME('now')"
+        "INSERT INTO settings (key, company_id, value, updated_at) VALUES ('license_payload', 1, ?, DATETIME('now'))
+         ON CONFLICT(key, company_id) DO UPDATE SET value = excluded.value, updated_at = DATETIME('now')"
     )
     .bind(license_content)
     .execute(pool)

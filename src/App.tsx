@@ -25,6 +25,7 @@ import { PaymentsView } from './components/accounting/PaymentsView';
 import { EmployeesView } from './components/hr/EmployeesView';
 import { LeavesView } from './components/hr/LeavesView';
 import { AttendanceView } from './components/hr/AttendanceView';
+import { ReportsView } from './components/reports/ReportsView';
 import { TrialBanner } from './components/licensing/TrialBanner';
 import { TrialExpiredModal } from './components/licensing/TrialExpiredModal';
 
@@ -64,6 +65,13 @@ export function App() {
     switch (activeView) {
       case 'dashboard':
         return <DashboardOverview modules={modules} />;
+      case 'reports':
+        return (
+          <ReportsView
+            companyId={currentUser.company_id || 1}
+            activeModules={modules.filter((m) => m.is_active).map((m) => m.key)}
+          />
+        );
       case 'contacts':
         return <PartnersView />;
       case 'companies':

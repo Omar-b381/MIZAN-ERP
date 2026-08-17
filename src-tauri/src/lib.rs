@@ -7,6 +7,7 @@ pub mod companies;
 pub mod dashboard;
 pub mod db;
 pub mod diagnostics;
+pub mod export;
 pub mod hr;
 pub mod inventory;
 pub mod licensing;
@@ -15,6 +16,7 @@ pub mod partners;
 pub mod products;
 pub mod purchases;
 pub mod rbac;
+pub mod reports;
 pub mod sales;
 pub mod settings;
 
@@ -151,8 +153,22 @@ pub fn run() {
             // Phase 8 Track B: Commercial Licensing & Trial
             commands::cmd_get_license_info,
             commands::cmd_get_machine_id,
-            commands::cmd_activate_license
+            commands::cmd_activate_license,
+            // Phase 9: Printing, Reports & Data Export
+            commands::cmd_get_trial_balance_filtered,
+            commands::cmd_get_profit_and_loss,
+            commands::cmd_get_general_ledger,
+            commands::cmd_get_sales_report,
+            commands::cmd_get_purchases_report,
+            commands::cmd_get_partner_statement,
+            commands::cmd_get_partner_aging,
+            commands::cmd_get_stock_on_hand_report,
+            commands::cmd_get_stock_movement_ledger,
+            commands::cmd_get_low_stock_report,
+            commands::cmd_export_report_excel,
+            commands::cmd_export_documents_batch_zip
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
