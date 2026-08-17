@@ -62,8 +62,9 @@ describe('Phase 9 — Printing, Reports & Data Export Engine', () => {
     expect(screen.getByText(/فقط ٧٩٬٨٠٠ جنيهاً مصرياً/)).toBeInTheDocument();
 
     // Action buttons
-    expect(screen.getByRole('button', { name: /طباعة المستند/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /تصدير إكسيل/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /حفظ كملف PDF/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /أمر طباعة مباشر/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /إكسيل/i })).toBeInTheDocument();
   });
 
   it('renders ReportsView with all report categories for active modules', async () => {

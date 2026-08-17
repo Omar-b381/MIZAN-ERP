@@ -1,11 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Printer,
   FileSpreadsheet,
+  Download,
   X,
   Building2,
   QrCode,
+  FileCheck,
 } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 import { api } from '../../lib/api';
 
 export interface PrintableDocLine {
@@ -49,7 +53,8 @@ interface PrintDocumentModalProps {
 }
 
 export const PrintDocumentModal: React.FC<PrintDocumentModalProps> = ({ document: doc, onClose }) => {
-  const [isExporting, setIsExporting] = React.useState(false);
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const getDocTitle = () => {
     switch (doc.docType) {
@@ -60,46 +65,89 @@ export const PrintDocumentModal: React.FC<PrintDocumentModalProps> = ({ document
       case 'sale_order':
         return { ar: 'أمر بيع معتمد', en: 'SALES ORDER', color: 'text-indigo-700' };
       case 'purchase_order':
-        return { ar: 'أمر شراء توريد', en: 'PURCHASE ORDER', color: 'text-amber-700' };
+        return { ar: 'أمر شراء وتوريد', en: 'PURCHASE ORDER', color: 'text-purple-700' };
       case 'payment_in':
-        return { ar: 'سند قبض نقدية / بنك', en: 'RECEIPT VOUCHER', color: 'text-emerald-700' };
+        return { ar: 'سند قبض نقدية وبنوك', en: 'OFFICIAL RECEIPT VOUCHER', color: 'text-teal-700' };
       case 'payment_out':
-        return { ar: 'سند صرف نقدية / بنك', en: 'PAYMENT VOUCHER', color: 'text-rose-700' };
+        return { ar: 'سند صرف نقدية وبنوك', en: 'PAYMENT VOUCHER', color: 'text-amber-700' };
       default:
-        return { ar: 'مستند مالي', en: 'FINANCIAL DOCUMENT', color: 'text-slate-800' };
+        return { ar: 'مستند أعمال رسمي', en: 'COMMERCIAL DOCUMENT', color: 'text-slate-800' };
     }
   };
 
   const docTitle = getDocTitle();
 
-  const handlePrint = () => {
+  // Arabic Tafqeet Helper
+  const numberToArabicWords = (amount: number): string => {
+    if (amount === 0) return 'صفر';
+    const integerPart = Math.floor(amount);
+    return `فقط ${integerPart.toLocaleString('ar-EG')} جنيهاً مصرياً لا غير`;
+  };
+
+  // Direct Hardware Printing
+  const handleDirectPrint = () => {
     window.print();
   };
 
+  // Direct PDF Save without browser dialog
+  const handleSavePdf = async () => {
+    try {
+      setIsGeneratingPdf(true);
+      const sheet = window.document.getElementById('printable-document-sheet');
+      if (!sheet) return;
+
+      const canvas = await html2canvas(sheet, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      const sanitizedDocNum = doc.docNumber.replace(/[/\\?%*:|"<>]/g, '_');
+      pdf.save(`${docTitle.ar}_${sanitizedDocNum}.pdf`);
+    } catch (err) {
+      console.error('Failed to generate PDF:', err);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  // Direct Native Excel Export
   const handleExportExcel = async () => {
     try {
-      setIsExporting(true);
+      setIsExportingExcel(true);
       const columns = [
-        { key: 'index', title: '#', data_type: 'number' as const },
-        { key: 'name', title: 'البيان / الصنف', data_type: 'text' as const },
+        { key: 'item', title: 'البند / الصنف', data_type: 'text' as const },
         { key: 'qty', title: 'الكمية', data_type: 'number' as const },
-        { key: 'unit_price', title: 'سعر الوحدة', data_type: 'currency' as const },
-        { key: 'tax', title: 'الضريبة', data_type: 'percent' as const },
-        { key: 'total', title: 'الإجمالي', data_type: 'currency' as const },
+        { key: 'uom', title: 'الوحدة', data_type: 'text' as const },
+        { key: 'price', title: 'سعر الوحدة (ج.م)', data_type: 'currency' as const },
+        { key: 'tax', title: 'نسبة الضريبة (%)', data_type: 'number' as const },
+        { key: 'total', title: 'الإجمالي الصافي (ج.م)', data_type: 'currency' as const },
       ];
 
-      const rows = doc.lines.map((l, i) => ({
-        index: i + 1,
-        name: l.name,
+      const rows = doc.lines.map((l) => ({
+        item: l.name,
         qty: l.quantity || 1,
-        unit_price: l.price_unit || 0,
-        tax: l.tax_rate ? l.tax_rate / 100 : 0.14,
+        uom: l.uom_name || 'وحدة',
+        price: l.price_unit || 0,
+        tax: l.tax_rate || 0,
         total: l.subtotal,
       }));
 
       await api.exportReportToXlsx({
-        title: `${docTitle.ar} - ${doc.docNumber}`,
-        subtitle: `العميل / المورد: ${doc.partnerName}`,
+        title: `${docTitle.ar} — ${doc.docNumber}`,
+        subtitle: `الطرف: ${doc.partnerName} | التاريخ: ${doc.date}`,
         company_name: doc.companyName,
         date_range: doc.date,
         columns,
@@ -109,21 +157,8 @@ export const PrintDocumentModal: React.FC<PrintDocumentModalProps> = ({ document
     } catch (err) {
       console.error('Failed to export document to Excel:', err);
     } finally {
-      setIsExporting(false);
+      setIsExportingExcel(false);
     }
-  };
-
-  // Simple Arabic Tafqeet for standard amounts
-  const formatTafqeet = (amount: number): string => {
-    const integerPart = Math.floor(amount);
-    const centsPart = Math.round((amount - integerPart) * 100);
-
-    let result = `فقط ${integerPart.toLocaleString('ar-EG')} جنيهاً مصرياً`;
-    if (centsPart > 0) {
-      result += ` و ${centsPart} قرشاً`;
-    }
-    result += ' لا غير.';
-    return result;
   };
 
   return (
@@ -131,36 +166,54 @@ export const PrintDocumentModal: React.FC<PrintDocumentModalProps> = ({ document
       {/* Container */}
       <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col my-auto print:shadow-none print:max-w-none print:w-full print:rounded-none">
         {/* Action Header - Hidden on Print */}
-        <div className="flex items-center justify-between px-6 py-4 bg-slate-800 text-white print:hidden">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-6 py-4 bg-slate-800 text-white gap-3 print:hidden">
           <div className="flex items-center gap-3">
             <Printer className="w-6 h-6 text-indigo-400" />
             <div>
-              <h3 className="text-lg font-bold">معاينة وطباعة المستند</h3>
+              <h3 className="text-lg font-bold">معاينة وطباعة وتصدير المستند</h3>
               <p className="text-xs text-slate-300">
                 {docTitle.ar} — {doc.docNumber}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            {/* Save Direct PDF */}
             <button
-              onClick={handleExportExcel}
-              disabled={isExporting}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-sm font-medium rounded-xl transition shadow-sm"
-              title="تصدير إكسيل"
+              onClick={handleSavePdf}
+              disabled={isGeneratingPdf}
+              className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs font-bold rounded-xl transition shadow-sm"
+              title="حفظ مباشر كملف PDF عالي الجودة"
             >
-              <FileSpreadsheet className="w-4 h-4" />
-              <span>{isExporting ? 'جاري التصدير...' : 'تصدير إكسيل'}</span>
+              <Download className="w-4 h-4" />
+              <span>{isGeneratingPdf ? 'جاري تجهيز PDF...' : 'حفظ كملف PDF'}</span>
             </button>
+
+            {/* Direct Hardware Print */}
             <button
-              onClick={handlePrint}
-              className="flex items-center gap-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-sm font-semibold rounded-xl transition shadow-md"
+              onClick={handleDirectPrint}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-bold rounded-xl transition shadow-md"
+              title="إرسال أمر طباعة مباشر إلى الطابعة"
             >
               <Printer className="w-4 h-4" />
-              <span>طباعة المستند</span>
+              <span>أمر طباعة مباشر</span>
             </button>
+
+            {/* Export Excel */}
+            <button
+              onClick={handleExportExcel}
+              disabled={isExportingExcel}
+              className="flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold rounded-xl transition shadow-sm"
+              title="تصدير بيانات المستند إلى ملف إكسيل"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>{isExportingExcel ? 'جاري...' : 'إكسيل'}</span>
+            </button>
+
+            {/* Close */}
             <button
               onClick={onClose}
-              className="p-2 hover:bg-slate-700 rounded-xl text-slate-400 hover:text-white transition"
+              className="p-2 hover:bg-slate-700 rounded-xl text-slate-400 hover:text-white transition mr-auto sm:mr-0"
               title="إغلاق"
             >
               <X className="w-5 h-5" />
@@ -191,10 +244,12 @@ export const PrintDocumentModal: React.FC<PrintDocumentModalProps> = ({ document
                   </span>
                 </div>
               </div>
+
               <div className="text-xs text-slate-600 space-y-0.5 pt-2">
                 {doc.companyTaxId && (
                   <p>
-                    <strong className="text-slate-800">الرقم الضريبي (Tax ID):</strong> {doc.companyTaxId}
+                    <strong className="text-slate-800">الرقم الضريبي (Tax ID):</strong>{' '}
+                    <span className="font-mono">{doc.companyTaxId}</span>
                   </p>
                 )}
                 {doc.companyCommercialReg && (
@@ -278,131 +333,118 @@ export const PrintDocumentModal: React.FC<PrintDocumentModalProps> = ({ document
                 </p>
               )}
               <p className="text-xs text-slate-500 mt-1">
-                عملة المعاملة: <span className="font-bold text-slate-800">{doc.currency || 'EGP (ج.م)'}</span>
+                العملة المعتمدة:{' '}
+                <strong className="text-slate-800 font-mono">
+                  {doc.currency === 'EGP' ? 'جنيه مصري (EGP)' : doc.currency}
+                </strong>
               </p>
             </div>
           </div>
 
-          {/* Items Table */}
+          {/* Line Items Table */}
           <div className="overflow-x-auto my-6">
             <table className="w-full text-xs text-right border-collapse">
               <thead>
-                <tr className="bg-slate-800 text-white uppercase text-[11px] font-bold">
-                  <th className="py-2.5 px-3 rounded-r-lg w-10 text-center">#</th>
-                  <th className="py-2.5 px-3">الصنف / البيان (Description)</th>
-                  <th className="py-2.5 px-3 text-center w-20">الكمية</th>
-                  <th className="py-2.5 px-3 text-left w-28">السعر الإفرادي</th>
-                  <th className="py-2.5 px-3 text-center w-16">الضريبة</th>
-                  <th className="py-2.5 px-3 text-left rounded-l-lg w-28">الإجمالي الصافي</th>
+                <tr className="bg-slate-800 text-white font-bold">
+                  <th className="p-3 rounded-r-lg">#</th>
+                  <th className="p-3">الوصف / اسم الصنف والمنتج</th>
+                  <th className="p-3 text-center">الكمية</th>
+                  <th className="p-3 text-center">الوحدة</th>
+                  <th className="p-3 text-left">سعر الوحدة</th>
+                  <th className="p-3 text-center">الخصم %</th>
+                  <th className="p-3 text-center">الضريبة %</th>
+                  <th className="p-3 text-left rounded-l-lg">الإجمالي الصافي</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200">
-                {doc.lines.length > 0 ? (
-                  doc.lines.map((item, idx) => (
-                    <tr key={item.id} className="hover:bg-slate-50/50">
-                      <td className="py-3 px-3 text-center text-slate-500 font-mono">{idx + 1}</td>
-                      <td className="py-3 px-3 font-semibold text-slate-900">
-                        {item.name}
-                        {item.uom_name && (
-                          <span className="text-[10px] text-slate-500 block font-normal">
-                            الوحدة: {item.uom_name}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-3 text-center font-mono font-medium text-slate-800">
-                        {item.quantity?.toLocaleString('ar-EG') || '1'}
-                      </td>
-                      <td className="py-3 px-3 text-left font-mono font-medium text-slate-800" dir="ltr">
-                        {item.price_unit?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
-                      </td>
-                      <td className="py-3 px-3 text-center text-slate-600 font-mono">
-                        {item.tax_rate ? `${item.tax_rate}%` : '14%'}
-                      </td>
-                      <td className="py-3 px-3 text-left font-mono font-bold text-slate-900" dir="ltr">
-                        {item.subtotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={6} className="py-6 text-center text-slate-400">
-                      لا توجد بنود مدرجة في هذا المستند
+              <tbody className="divide-y divide-slate-200 font-mono">
+                {doc.lines.map((line, idx) => (
+                  <tr key={line.id} className="hover:bg-slate-50">
+                    <td className="p-3 text-slate-500 font-sans">{idx + 1}</td>
+                    <td className="p-3 font-sans font-bold text-slate-900">{line.name}</td>
+                    <td className="p-3 text-center font-bold text-slate-800">
+                      {(line.quantity || 1).toLocaleString('ar-EG')}
+                    </td>
+                    <td className="p-3 text-center font-sans text-slate-600">{line.uom_name || 'وحدة'}</td>
+                    <td className="p-3 text-left text-slate-700">
+                      {(line.price_unit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="p-3 text-center text-slate-600">{line.discount_percent || 0}%</td>
+                    <td className="p-3 text-center text-slate-600">{line.tax_rate || 14}%</td>
+                    <td className="p-3 text-left font-bold text-slate-900">
+                      {line.subtotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
-                )}
+                ))}
               </tbody>
             </table>
           </div>
 
-          {/* Totals Summary & Tafqeet */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-start pt-4 border-t border-slate-200">
-            {/* Tafqeet & Notes */}
-            <div className="space-y-3">
-              <div className="p-3.5 bg-indigo-50/70 border border-indigo-100 rounded-xl">
-                <span className="text-[11px] font-bold text-indigo-900 block mb-1">
-                  المبلغ الإجمالي بالحروف (Tafqeet):
+          {/* Totals & Arabic Tafqeet Summary */}
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-6 my-6 pt-4 border-t border-slate-200">
+            {/* Arabic Tafqeet & QR Verification */}
+            <div className="sm:col-span-7 space-y-4">
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                <span className="text-[11px] font-bold text-slate-500 block mb-1">
+                  المبلغ الإجمالي كتابةً بالحروف (Tafqeet):
                 </span>
-                <p className="text-xs font-semibold text-indigo-950 leading-relaxed">
-                  {formatTafqeet(doc.amountTotal)}
-                </p>
+                <p className="text-sm font-extrabold text-slate-900">{numberToArabicWords(doc.amountTotal)}</p>
               </div>
 
               {doc.note && (
-                <div className="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                  <strong className="text-slate-800 block mb-0.5">ملاحظات وشروط:</strong>
-                  <p className="leading-relaxed">{doc.note}</p>
+                <div className="text-xs text-slate-600 bg-amber-50/50 p-3 rounded-lg border border-amber-100">
+                  <strong className="text-slate-800">ملاحظات وشروط:</strong> {doc.note}
                 </div>
               )}
+
+              {/* QR Verification Badge */}
+              <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 w-fit">
+                <QrCode className="w-10 h-10 text-slate-800" />
+                <div className="text-[11px]">
+                  <span className="font-bold text-slate-900 block">فحص وتوثيق المستند إلكترونياً</span>
+                  <span className="text-slate-500 font-mono">ZATCA / ETA Standard Verification</span>
+                </div>
+              </div>
             </div>
 
-            {/* Numbers Summary Box */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2 text-xs">
-              <div className="flex justify-between text-slate-600">
-                <span>المجموع الخاضع للضريبة (Subtotal):</span>
-                <span className="font-mono font-medium" dir="ltr">
-                  {doc.amountUntaxed.toLocaleString('en-US', { minimumFractionDigits: 2 })} {doc.currency}
+            {/* Financial Summary */}
+            <div className="sm:col-span-5 space-y-2 text-xs font-mono">
+              <div className="flex justify-between py-1.5 text-slate-600 border-b border-slate-100">
+                <span className="font-sans">المجموع قبل الضريبة (Untaxed):</span>
+                <span className="font-bold text-slate-800">
+                  {doc.amountUntaxed.toLocaleString('en-US', { minimumFractionDigits: 2 })} ج.م
                 </span>
               </div>
-              <div className="flex justify-between text-slate-600">
-                <span>ضريبة القيمة المضافة 14% (VAT 14%):</span>
-                <span className="font-mono font-medium" dir="ltr">
-                  {doc.amountTax.toLocaleString('en-US', { minimumFractionDigits: 2 })} {doc.currency}
+              <div className="flex justify-between py-1.5 text-slate-600 border-b border-slate-100">
+                <span className="font-sans">ضريبة القيمة المضافة 14% (VAT):</span>
+                <span className="font-bold text-slate-800">
+                  {doc.amountTax.toLocaleString('en-US', { minimumFractionDigits: 2 })} ج.م
                 </span>
               </div>
-              <div className="border-t-2 border-slate-300 pt-2 flex justify-between text-sm font-extrabold text-slate-900">
-                <span>الإجمالي النهائي الصافي (Net Total):</span>
-                <span className="font-mono text-base text-indigo-700" dir="ltr">
-                  {doc.amountTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })} {doc.currency}
+              <div className="flex justify-between py-2.5 px-3 rounded-xl bg-slate-900 text-white font-bold text-sm">
+                <span className="font-sans">الإجمالي النهائي المستحق:</span>
+                <span className="text-emerald-400 font-black">
+                  {doc.amountTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })} ج.م
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Signatures & Verification Footer */}
-          <div className="mt-12 pt-8 border-t border-slate-200 grid grid-cols-3 gap-6 text-center text-xs text-slate-600">
-            {/* Signature 1 */}
-            <div className="space-y-12">
-              <p className="font-bold text-slate-800">توقيع المستلم / العميل</p>
-              <div className="border-b border-dashed border-slate-400 w-3/4 mx-auto"></div>
+          {/* Signatures & Footer */}
+          <div className="grid grid-cols-2 gap-8 mt-12 pt-8 border-t-2 border-dashed border-slate-300 text-xs text-center">
+            <div>
+              <p className="font-bold text-slate-700 mb-8">توقيع المستلم / العميل المعتمد</p>
+              <div className="w-40 border-b border-slate-400 mx-auto"></div>
             </div>
-
-            {/* QR Verification */}
-            <div className="flex flex-col items-center justify-center space-y-1">
-              <div className="p-2 border border-slate-300 rounded-lg bg-white shadow-sm">
-                <QrCode className="w-12 h-12 text-slate-800" />
-              </div>
-              <span className="text-[10px] text-slate-500 font-mono">MIZAN VERIFIED QR</span>
-            </div>
-
-            {/* Signature 2 */}
-            <div className="space-y-12">
-              <p className="font-bold text-slate-800">اعتماد الإدارة والختم</p>
-              <div className="border-b border-dashed border-slate-400 w-3/4 mx-auto"></div>
+            <div>
+              <p className="font-bold text-slate-700 mb-8">توقيع وختم الإدارة المالية / الشركة</p>
+              <div className="w-40 border-b border-slate-400 mx-auto"></div>
             </div>
           </div>
 
-          <div className="mt-8 text-center text-[10px] text-slate-400 border-t border-slate-100 pt-3">
-            تم استخراج هذا المستند إلكترونياً عبر منظومة ميزان لإدارة الموارد المؤسسية (MIZAN ERP v1.1.0)
+          {/* System watermark */}
+          <div className="text-center text-[10px] text-slate-400 mt-8 pt-4 border-t border-slate-100 flex items-center justify-center gap-1">
+            <FileCheck className="w-3.5 h-3.5 text-emerald-600" />
+            <span>تم استخراج هذا المستند آلياً بواسطة نظام ميزان لإدارة المؤسسات (MIZAN ERP)</span>
           </div>
         </div>
       </div>

@@ -8,6 +8,7 @@ import {
   Edit2,
   Trash2,
   X,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
@@ -25,6 +26,7 @@ export const ProductsView: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<number | 'all'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   const [formData, setFormData] = useState<CreateProductInput>({
     company_id: activeCompanyId,
@@ -142,6 +144,49 @@ export const ProductsView: React.FC = () => {
     }
   };
 
+  const handleExportExcel = async () => {
+    try {
+      setIsExporting(true);
+      const columns = [
+        { key: 'sku', title: 'كود الصنف (SKU)', data_type: 'text' as const },
+        { key: 'barcode', title: 'الباركود', data_type: 'text' as const },
+        { key: 'name', title: 'اسم المنتج', data_type: 'text' as const },
+        { key: 'category', title: 'الفئة والتصنيف', data_type: 'text' as const },
+        { key: 'type', title: 'نوع المنتج', data_type: 'text' as const },
+        { key: 'sale_price', title: 'سعر البيع (ج.م)', data_type: 'currency' as const },
+        { key: 'cost_price', title: 'سعر التكلفة (ج.م)', data_type: 'currency' as const },
+        { key: 'uom', title: 'وحدة القياس', data_type: 'text' as const },
+        { key: 'stock', title: 'الرصيد المتاح', data_type: 'number' as const },
+      ];
+
+      const rows = products.map((p) => ({
+        sku: p.product.sku,
+        barcode: p.product.barcode || '-',
+        name: p.product.name,
+        category: p.category_name || 'عام',
+        type: p.product.type === 'storable' ? 'مخزني' : p.product.type === 'consumable' ? 'استهلاكي' : 'خدمي',
+        sale_price: p.product.sale_price_cents / 100,
+        cost_price: p.product.cost_price_cents / 100,
+        uom: p.uom_name || 'وحدة',
+        stock: p.qty_on_hand_milli / 1000,
+      }));
+
+      await api.exportReportToXlsx({
+        title: 'دليل المنتجات والأصناف (Product Catalog)',
+        subtitle: `عدد الأصناف: ${products.length} صنف`,
+        company_name: 'شركة ميزان للتجارة والأنظمة المؤسسية',
+        date_range: new Date().toISOString().split('T')[0],
+        columns,
+        rows,
+        is_rtl: true,
+      });
+    } catch (err) {
+      console.error('Failed to export products to Excel:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -158,6 +203,14 @@ export const ProductsView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleExportExcel}
+            disabled={isExporting}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-semibold shadow-sm transition"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            <span>{isExporting ? 'جاري التصدير...' : 'تصدير الأصناف (.xlsx)'}</span>
+          </button>
           <button
             onClick={handleOpenCreate}
             className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"

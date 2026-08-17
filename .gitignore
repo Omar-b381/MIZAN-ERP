@@ -47,5 +47,6 @@ Thumbs.db
 tools/
 *.mizan
 *.bin
+release-bundle/
 
 

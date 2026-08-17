@@ -7,6 +7,7 @@ import {
   Warehouse,
   Hash,
   RefreshCw,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
@@ -20,6 +21,7 @@ export const InventoryStockView: React.FC = () => {
   const [locations, setLocations] = useState<StockLocation[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<number | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
 
   const loadData = async () => {
     try {
@@ -57,8 +59,47 @@ export const InventoryStockView: React.FC = () => {
     0
   );
 
+  const handleExportExcel = async () => {
+    try {
+      setIsExporting(true);
+      const columns = [
+        { key: 'sku', title: 'رمز الصنف (SKU)', data_type: 'text' as const },
+        { key: 'product', title: 'اسم المنتج', data_type: 'text' as const },
+        { key: 'location', title: 'موقع التخزين / المستودع', data_type: 'text' as const },
+        { key: 'lot', title: 'رقم التشغيلة / السيريال', data_type: 'text' as const },
+        { key: 'qty', title: 'الكمية المتوفرة', data_type: 'number' as const },
+        { key: 'uom', title: 'وحدة القياس', data_type: 'text' as const },
+        { key: 'updated', title: 'تاريخ آخر حركة', data_type: 'text' as const },
+      ];
+
+      const rows = filteredQuantities.map((item) => ({
+        sku: item.sku,
+        product: item.product_name,
+        location: item.location_name,
+        lot: item.lot_serial_number || '-',
+        qty: item.quantity_milli / 1000,
+        uom: item.uom_name,
+        updated: new Date(item.updated_at).toLocaleDateString('ar-EG'),
+      }));
+
+      await api.exportReportToXlsx({
+        title: 'تقرير أرصدة المخزون الفعلي (Stock on Hand)',
+        subtitle: `إجمالي الوحدات: ${totalStockUnits.toLocaleString('ar-EG')} وحدة | عدد البنود: ${filteredQuantities.length}`,
+        company_name: 'شركة ميزان للتجارة والأنظمة المؤسسية',
+        date_range: new Date().toISOString().split('T')[0],
+        columns,
+        rows,
+        is_rtl: true,
+      });
+    } catch (err) {
+      console.error('Failed to export inventory stock to Excel:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir="rtl">
       {/* Header */}
       <div className="bg-card border border-border rounded-xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -76,8 +117,16 @@ export const InventoryStockView: React.FC = () => {
 
         <div className="flex items-center gap-3">
           <button
+            onClick={handleExportExcel}
+            disabled={isExporting}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-xs font-bold text-white transition shadow-sm"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            <span>{isExporting ? 'جاري التصدير...' : 'تصدير إكسيل (.xlsx)'}</span>
+          </button>
+          <button
             onClick={loadData}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-background hover:bg-secondary text-xs font-semibold text-foreground transition-colors"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-background hover:bg-secondary text-xs font-semibold text-foreground transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             <span>{t('common.refresh', 'تحديث')}</span>
