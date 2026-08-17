@@ -342,3 +342,84 @@ export interface CreatePickingInput {
   note?: string | null;
   moves: CreatePickingMoveInput[];
 }
+
+// ----------------------------------------------------
+// Phase 3: Sales Types
+// ----------------------------------------------------
+export type SaleOrderState = 'draft' | 'sent' | 'sale' | 'done' | 'cancelled';
+export type DeliveryStatus = 'no' | 'to_deliver' | 'delivered' | 'cancelled';
+export type InvoiceStatus = 'no' | 'to_invoice' | 'invoiced' | 'cancelled';
+
+export interface SaleOrder {
+  id: number;
+  company_id: number;
+  name: string;
+  partner_id: number;
+  partner_name?: string | null;
+  date_order: string;
+  validity_date?: string | null;
+  state: SaleOrderState;
+  currency: string;
+  amount_untaxed_cents: number;
+  amount_tax_cents: number;
+  amount_total_cents: number;
+  delivery_status: DeliveryStatus;
+  invoice_status: InvoiceStatus;
+  picking_id?: number | null;
+  note?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SaleOrderLine {
+  id: number;
+  order_id: number;
+  product_id: number;
+  product_name?: string | null;
+  product_sku?: string | null;
+  name: string;
+  product_uom_qty_milli: number;
+  product_uom_id: number;
+  uom_name?: string | null;
+  price_unit_cents: number;
+  discount_percent_milli: number;
+  tax_rate_milli: number;
+  price_subtotal_cents: number;
+  price_total_cents: number;
+  qty_delivered_milli: number;
+  qty_invoiced_milli: number;
+  sequence: number;
+  created_at: string;
+}
+
+export interface SaleOrderDetail {
+  order: SaleOrder;
+  lines: SaleOrderLine[];
+}
+
+export interface CreateSaleOrderLineInput {
+  product_id: number;
+  name?: string;
+  product_uom_qty_milli: number;
+  product_uom_id: number;
+  price_unit_cents: number;
+  discount_percent_milli?: number;
+  tax_rate_milli?: number;
+}
+
+export interface CreateSaleOrderInput {
+  company_id: number;
+  partner_id: number;
+  validity_date?: string | null;
+  currency?: string;
+  note?: string | null;
+  lines: CreateSaleOrderLineInput[];
+}
+
+export interface UpdateSaleOrderInput {
+  id: number;
+  partner_id: number;
+  validity_date?: string | null;
+  note?: string | null;
+  lines: CreateSaleOrderLineInput[];
+}

@@ -8,6 +8,7 @@ pub mod modules;
 pub mod partners;
 pub mod products;
 pub mod rbac;
+pub mod sales;
 pub mod settings;
 
 #[cfg(test)]
@@ -84,7 +85,15 @@ pub fn run() {
             commands::cmd_get_adjustment_lines,
             commands::cmd_create_inventory_adjustment,
             commands::cmd_update_adjustment_line_count,
-            commands::cmd_validate_inventory_adjustment
+            commands::cmd_validate_inventory_adjustment,
+            // Phase 3: Sales
+            commands::cmd_list_sale_orders,
+            commands::cmd_get_sale_order,
+            commands::cmd_create_sale_order,
+            commands::cmd_update_sale_order,
+            commands::cmd_confirm_sale_order,
+            commands::cmd_cancel_sale_order,
+            commands::cmd_delete_sale_order
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

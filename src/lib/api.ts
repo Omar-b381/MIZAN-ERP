@@ -23,6 +23,11 @@ import {
   StockInventoryAdjustmentLineDetail,
   CreatePickingInput,
   CreateLocationInput,
+  SaleOrder,
+  SaleOrderLine,
+  SaleOrderDetail,
+  CreateSaleOrderInput,
+  UpdateSaleOrderInput,
 } from '../types';
 
 let mockModules: ModuleRecord[] = [
@@ -340,6 +345,52 @@ let mockAdjustments: StockInventoryAdjustment[] = [
     accounting_date: '2026-08-17',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+  },
+];
+
+let mockSaleOrders: SaleOrder[] = [
+  {
+    id: 1,
+    company_id: 1,
+    name: 'SO/2026/00001',
+    partner_id: 2,
+    partner_name: 'شركة الأهرام للتجارة',
+    date_order: new Date().toISOString(),
+    validity_date: '2026-09-30',
+    state: 'draft',
+    currency: 'EGP',
+    amount_untaxed_cents: 7000000,
+    amount_tax_cents: 980000,
+    amount_total_cents: 7980000,
+    delivery_status: 'no',
+    invoice_status: 'no',
+    picking_id: null,
+    note: 'عرض أسعار لتوريد أجهزة حاسوب مكتبية مع ضمان محلي معتمد',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+];
+
+let mockSaleOrderLines: SaleOrderLine[] = [
+  {
+    id: 1,
+    order_id: 1,
+    product_id: 1,
+    product_name: 'لابتوب ديل للأعمال Dell Latitude 5530',
+    product_sku: 'PROD-DELL-5530',
+    name: 'لابتوب ديل للأعمال Dell Latitude 5530 - Core i7 16GB',
+    product_uom_qty_milli: 2000,
+    product_uom_id: 1,
+    uom_name: 'قطعة / Unit',
+    price_unit_cents: 3500000,
+    discount_percent_milli: 0,
+    tax_rate_milli: 14000,
+    price_subtotal_cents: 7000000,
+    price_total_cents: 7980000,
+    qty_delivered_milli: 0,
+    qty_invoiced_milli: 0,
+    sequence: 10,
+    created_at: new Date().toISOString(),
   },
 ];
 
@@ -758,6 +809,185 @@ async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Prom
       mockAdjustments = mockAdjustments.map((a) => (a.id === id ? { ...a, state: 'done' as const } : a));
       return mockAdjustments.find((a) => a.id === id) as unknown as T;
     }
+
+    // Phase 3: Sales Mocks
+    case 'cmd_list_sale_orders':
+    case 'list_sale_orders': {
+      const sf = args?.state_filter as string | undefined;
+      const pid = args?.partner_id as number | undefined;
+      let res = [...mockSaleOrders];
+      if (sf && sf !== 'all') res = res.filter((o) => o.state === sf);
+      if (pid) res = res.filter((o) => o.partner_id === pid);
+      return res as unknown as T;
+    }
+    case 'cmd_get_sale_order':
+    case 'get_sale_order': {
+      const oid = args?.order_id as number;
+      const order = mockSaleOrders.find((o) => o.id === oid);
+      if (!order) return null as unknown as T;
+      const lines = mockSaleOrderLines.filter((l) => l.order_id === oid);
+      return { order, lines } as unknown as T;
+    }
+    case 'cmd_create_sale_order':
+    case 'create_sale_order': {
+      const input = args?.input as CreateSaleOrderInput;
+      const newId = mockSaleOrders.length + 1;
+      const partner = mockPartners.find((p) => p.id === input.partner_id);
+
+      let untaxed = 0;
+      let tax = 0;
+      let total = 0;
+
+      const lines: SaleOrderLine[] = input.lines.map((l, idx) => {
+        const prod = mockProducts.find((p) => p.id === l.product_id);
+        const base = (l.product_uom_qty_milli * l.price_unit_cents) / 1000;
+        const disc = (base * (l.discount_percent_milli || 0)) / 100000;
+        const sub = base - disc;
+        const tVal = (sub * (l.tax_rate_milli || 14000)) / 100000;
+        const tLine = sub + tVal;
+
+        untaxed += sub;
+        tax += tVal;
+        total += tLine;
+
+        return {
+          id: mockSaleOrderLines.length + idx + 1,
+          order_id: newId,
+          product_id: l.product_id,
+          product_name: prod?.name || `Product #${l.product_id}`,
+          product_sku: prod?.sku || 'SKU',
+          name: l.name || prod?.name || '',
+          product_uom_qty_milli: l.product_uom_qty_milli,
+          product_uom_id: l.product_uom_id,
+          uom_name: 'قطعة',
+          price_unit_cents: l.price_unit_cents,
+          discount_percent_milli: l.discount_percent_milli || 0,
+          tax_rate_milli: l.tax_rate_milli || 14000,
+          price_subtotal_cents: sub,
+          price_total_cents: tLine,
+          qty_delivered_milli: 0,
+          qty_invoiced_milli: 0,
+          sequence: (idx + 1) * 10,
+          created_at: new Date().toISOString(),
+        };
+      });
+
+      const newOrder: SaleOrder = {
+        id: newId,
+        company_id: input.company_id,
+        name: `SO/2026/${String(newId).padStart(5, '0')}`,
+        partner_id: input.partner_id,
+        partner_name: partner?.name || null,
+        date_order: new Date().toISOString(),
+        validity_date: input.validity_date || null,
+        state: 'draft',
+        currency: input.currency || 'EGP',
+        amount_untaxed_cents: untaxed,
+        amount_tax_cents: tax,
+        amount_total_cents: total,
+        delivery_status: 'no',
+        invoice_status: 'no',
+        picking_id: null,
+        note: input.note || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      mockSaleOrders.unshift(newOrder);
+      mockSaleOrderLines.push(...lines);
+
+      return { order: newOrder, lines } as unknown as T;
+    }
+    case 'cmd_update_sale_order':
+    case 'update_sale_order': {
+      const input = args?.input as UpdateSaleOrderInput;
+      const order = mockSaleOrders.find((o) => o.id === input.id);
+      if (!order) throw new Error('Order not found');
+
+      mockSaleOrderLines = mockSaleOrderLines.filter((l) => l.order_id !== input.id);
+
+      let untaxed = 0;
+      let tax = 0;
+      let total = 0;
+
+      const lines: SaleOrderLine[] = input.lines.map((l, idx) => {
+        const prod = mockProducts.find((p) => p.id === l.product_id);
+        const base = (l.product_uom_qty_milli * l.price_unit_cents) / 1000;
+        const disc = (base * (l.discount_percent_milli || 0)) / 100000;
+        const sub = base - disc;
+        const tVal = (sub * (l.tax_rate_milli || 14000)) / 100000;
+        const tLine = sub + tVal;
+
+        untaxed += sub;
+        tax += tVal;
+        total += tLine;
+
+        return {
+          id: mockSaleOrderLines.length + idx + 1,
+          order_id: input.id,
+          product_id: l.product_id,
+          product_name: prod?.name || `Product #${l.product_id}`,
+          product_sku: prod?.sku || 'SKU',
+          name: l.name || prod?.name || '',
+          product_uom_qty_milli: l.product_uom_qty_milli,
+          product_uom_id: l.product_uom_id,
+          uom_name: 'قطعة',
+          price_unit_cents: l.price_unit_cents,
+          discount_percent_milli: l.discount_percent_milli || 0,
+          tax_rate_milli: l.tax_rate_milli || 14000,
+          price_subtotal_cents: sub,
+          price_total_cents: tLine,
+          qty_delivered_milli: 0,
+          qty_invoiced_milli: 0,
+          sequence: (idx + 1) * 10,
+          created_at: new Date().toISOString(),
+        };
+      });
+
+      mockSaleOrderLines.push(...lines);
+      order.partner_id = input.partner_id;
+      order.validity_date = input.validity_date || null;
+      order.note = input.note || null;
+      order.amount_untaxed_cents = untaxed;
+      order.amount_tax_cents = tax;
+      order.amount_total_cents = total;
+
+      return { order, lines } as unknown as T;
+    }
+    case 'cmd_confirm_sale_order':
+    case 'confirm_sale_order': {
+      const oid = args?.order_id as number;
+      const order = mockSaleOrders.find((o) => o.id === oid);
+      if (!order) throw new Error('Order not found');
+
+      order.state = 'sale';
+      order.delivery_status = 'to_deliver';
+      order.invoice_status = 'to_invoice';
+      order.picking_id = 99;
+
+      const lines = mockSaleOrderLines.filter((l) => l.order_id === oid);
+      return { order, lines } as unknown as T;
+    }
+    case 'cmd_cancel_sale_order':
+    case 'cancel_sale_order': {
+      const oid = args?.order_id as number;
+      const order = mockSaleOrders.find((o) => o.id === oid);
+      if (!order) throw new Error('Order not found');
+
+      order.state = 'cancelled';
+      order.delivery_status = 'cancelled';
+      order.invoice_status = 'cancelled';
+
+      const lines = mockSaleOrderLines.filter((l) => l.order_id === oid);
+      return { order, lines } as unknown as T;
+    }
+    case 'cmd_delete_sale_order':
+    case 'delete_sale_order': {
+      const oid = args?.order_id as number;
+      mockSaleOrders = mockSaleOrders.filter((o) => o.id !== oid);
+      mockSaleOrderLines = mockSaleOrderLines.filter((l) => l.order_id !== oid);
+      return undefined as unknown as T;
+    }
     default:
       throw new Error(`Command ${cmd} not implemented in mock`);
   }
@@ -820,4 +1050,14 @@ export const api = {
     invokeTauri<void>('cmd_update_adjustment_line_count', { input }),
   validateInventoryAdjustment: (adjustment_id: number) =>
     invokeTauri<StockInventoryAdjustment>('cmd_validate_inventory_adjustment', { adjustment_id }),
+
+  // Phase 3: Sales
+  listSaleOrders: (company_id: number, state_filter?: string, partner_id?: number) =>
+    invokeTauri<SaleOrder[]>('cmd_list_sale_orders', { company_id, state_filter, partner_id }),
+  getSaleOrder: (order_id: number) => invokeTauri<SaleOrderDetail | null>('cmd_get_sale_order', { order_id }),
+  createSaleOrder: (input: CreateSaleOrderInput) => invokeTauri<SaleOrderDetail>('cmd_create_sale_order', { input }),
+  updateSaleOrder: (input: UpdateSaleOrderInput) => invokeTauri<SaleOrderDetail>('cmd_update_sale_order', { input }),
+  confirmSaleOrder: (order_id: number) => invokeTauri<SaleOrderDetail>('cmd_confirm_sale_order', { order_id }),
+  cancelSaleOrder: (order_id: number) => invokeTauri<SaleOrderDetail>('cmd_cancel_sale_order', { order_id }),
+  deleteSaleOrder: (order_id: number) => invokeTauri<void>('cmd_delete_sale_order', { order_id }),
 };

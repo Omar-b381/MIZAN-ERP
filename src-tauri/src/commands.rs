@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use tauri::State;
-use crate::{activity, auth, companies, inventory, modules, partners, products, rbac, settings, AppState};
+use crate::{activity, auth, companies, inventory, modules, partners, products, rbac, sales, settings, AppState};
 
 // ----------------------------------------------------
 // Modules Commands
@@ -655,6 +655,81 @@ pub async fn cmd_validate_inventory_adjustment(
     adjustment_id: i64,
 ) -> Result<inventory::StockInventoryAdjustment, String> {
     inventory::validate_inventory_adjustment(&state.pool, adjustment_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ----------------------------------------------------
+// Sales & Quotations Commands (Phase 3)
+// ----------------------------------------------------
+#[tauri::command]
+pub async fn cmd_list_sale_orders(
+    state: State<'_, AppState>,
+    company_id: i64,
+    state_filter: Option<String>,
+    partner_id: Option<i64>,
+) -> Result<Vec<sales::SaleOrder>, String> {
+    sales::list_sale_orders(&state.pool, company_id, state_filter, partner_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_get_sale_order(
+    state: State<'_, AppState>,
+    order_id: i64,
+) -> Result<Option<sales::SaleOrderDetail>, String> {
+    sales::get_sale_order(&state.pool, order_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_create_sale_order(
+    state: State<'_, AppState>,
+    input: sales::CreateSaleOrderInput,
+) -> Result<sales::SaleOrderDetail, String> {
+    sales::create_sale_order(&state.pool, input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_update_sale_order(
+    state: State<'_, AppState>,
+    input: sales::UpdateSaleOrderInput,
+) -> Result<sales::SaleOrderDetail, String> {
+    sales::update_sale_order(&state.pool, input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_confirm_sale_order(
+    state: State<'_, AppState>,
+    order_id: i64,
+) -> Result<sales::SaleOrderDetail, String> {
+    sales::confirm_sale_order(&state.pool, order_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_cancel_sale_order(
+    state: State<'_, AppState>,
+    order_id: i64,
+) -> Result<sales::SaleOrderDetail, String> {
+    sales::cancel_sale_order(&state.pool, order_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cmd_delete_sale_order(
+    state: State<'_, AppState>,
+    order_id: i64,
+) -> Result<(), String> {
+    sales::delete_sale_order(&state.pool, order_id)
         .await
         .map_err(|e| e.to_string())
 }

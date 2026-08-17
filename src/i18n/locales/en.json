@@ -42,6 +42,7 @@
     "activate": "Activate",
     "deactivate": "Deactivate",
     "core": "Core Architecture",
+    "salesSection": "Sales",
     "inventorySection": "Inventory & Products",
     "products": "Products & Catalog",
     "inventory": "Inventory & Warehouse",
@@ -54,6 +55,31 @@
     "recruitment": "Recruitment",
     "timeoff": "Time-Off Management",
     "timesheet": "Attendance & Timesheets"
+  },
+  "sales": {
+    "title": "Sales & Quotations",
+    "subtitle": "Complete commercial cycle: quotations, confirmed sales orders, Egyptian VAT, and automated delivery orders",
+    "createOrder": "Create Quotation / Sales Order",
+    "editOrder": "Edit Quotation",
+    "saveQuote": "Save Quotation",
+    "confirmCancel": "Are you sure you want to cancel this sales order?",
+    "confirmDelete": "Are you sure you want to delete this draft?",
+    "empty": "No sales orders or quotations found",
+    "searchPlaceholder": "Search by order number or customer name...",
+    "fields": {
+      "number": "Order No.",
+      "customer": "Customer",
+      "date": "Order Date",
+      "validity": "Expiration Date",
+      "currency": "Currency",
+      "untaxed": "Untaxed Amount",
+      "tax": "VAT (14%)",
+      "total": "Total Amount",
+      "delivery": "Delivery Status",
+      "invoice": "Invoice Status",
+      "state": "Status",
+      "notes": "Terms & Notes"
+    }
   },
   "products": {
     "title": "Products & Catalog",

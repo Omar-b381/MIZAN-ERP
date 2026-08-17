@@ -1,5 +1,5 @@
 use crate::{
-    activity, auth, companies, db, inventory, modules, partners, products, rbac, settings,
+    activity, auth, companies, db, inventory, modules, partners, products, rbac, sales, settings,
 };
 use sqlx::SqlitePool;
 
@@ -585,4 +585,154 @@ async fn test_inventory_adjustment_reconciliation() {
     // 5. Verify on-hand stock is now reconciled to exactly 8 units (8000 milli)
     let stock = inventory::list_stock_quantities(&pool, 1, Some(5), Some(2)).await.unwrap();
     assert_eq!(stock[0].quantity_milli, 8000);
+}
+
+#[tokio::test]
+async fn test_quotation_creation_and_financial_calculations() {
+    let pool = setup_test_db().await;
+
+    // Line 1: 2x Laptop @ 35,000 EGP (3,500,000 cents) with 10% discount (10,000 milli) and 14% VAT (14,000 milli)
+    // Base: 70,000 EGP = 7,000,000 cents. Discount: 7,000 EGP = 700,000 cents. Subtotal: 63,000 EGP = 6,300,000 cents.
+    // Tax: 63,000 * 14% = 8,820 EGP = 882,000 cents. Total: 71,820 EGP = 7,182,000 cents.
+    // Line 2: 1x Monitor @ 6,000 EGP (600,000 cents) with 0% discount and 14% VAT
+    // Base & Subtotal: 6,000 EGP = 600,000 cents. Tax: 6,000 * 14% = 840 EGP = 84,000 cents. Total: 6,840 EGP = 684,000 cents.
+    // Grand totals:
+    // Untaxed: 6,300,000 + 600,000 = 6,900,000 cents (69,000 EGP)
+    // Tax: 882,000 + 84,000 = 966,000 cents (9,660 EGP)
+    // Total: 7,182,000 + 684,000 = 7,866,000 cents (78,660 EGP)
+    let quote = sales::create_sale_order(
+        &pool,
+        sales::CreateSaleOrderInput {
+            company_id: 1,
+            partner_id: 2,
+            validity_date: Some("2026-10-31".to_string()),
+            currency: Some("EGP".to_string()),
+            note: Some("عرض أسعار للأجهزة المكتبية".to_string()),
+            lines: vec![
+                sales::CreateSaleOrderLineInput {
+                    product_id: 1,
+                    name: Some("Dell Latitude 5530".to_string()),
+                    product_uom_qty_milli: 2000,
+                    product_uom_id: 1,
+                    price_unit_cents: 3500000,
+                    discount_percent_milli: Some(10000), // 10%
+                    tax_rate_milli: Some(14000),          // 14%
+                },
+                sales::CreateSaleOrderLineInput {
+                    product_id: 2,
+                    name: Some("Samsung 27 inch IPS".to_string()),
+                    product_uom_qty_milli: 1000,
+                    product_uom_id: 1,
+                    price_unit_cents: 600000,
+                    discount_percent_milli: Some(0),
+                    tax_rate_milli: Some(14000), // 14%
+                },
+            ],
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(quote.order.state, "draft");
+    assert_eq!(quote.order.amount_untaxed_cents, 6900000);
+    assert_eq!(quote.order.amount_tax_cents, 966000);
+    assert_eq!(quote.order.amount_total_cents, 7866000);
+    assert_eq!(quote.lines.len(), 2);
+    assert_eq!(quote.lines[0].price_subtotal_cents, 6300000);
+    assert_eq!(quote.lines[0].price_total_cents, 7182000);
+    assert_eq!(quote.lines[1].price_subtotal_cents, 600000);
+    assert_eq!(quote.lines[1].price_total_cents, 684000);
+}
+
+#[tokio::test]
+async fn test_sales_order_confirmation_and_delivery_trigger() {
+    let pool = setup_test_db().await;
+
+    // 1. Create a quotation
+    let quote = sales::create_sale_order(
+        &pool,
+        sales::CreateSaleOrderInput {
+            company_id: 1,
+            partner_id: 2,
+            validity_date: Some("2026-12-31".to_string()),
+            currency: Some("EGP".to_string()),
+            note: Some("أمر بيع معتمد مع توصيل فوري".to_string()),
+            lines: vec![sales::CreateSaleOrderLineInput {
+                product_id: 1,
+                name: Some("Dell Latitude 5530".to_string()),
+                product_uom_qty_milli: 3000,
+                product_uom_id: 1,
+                price_unit_cents: 3500000,
+                discount_percent_milli: None,
+                tax_rate_milli: None,
+            }],
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(quote.order.delivery_status, "no");
+    assert!(quote.order.picking_id.is_none());
+
+    // 2. Confirm the sales order
+    let confirmed = sales::confirm_sale_order(&pool, quote.order.id).await.unwrap();
+
+    assert_eq!(confirmed.order.state, "sale");
+    assert_eq!(confirmed.order.delivery_status, "to_deliver");
+    assert_eq!(confirmed.order.invoice_status, "to_invoice");
+    assert!(confirmed.order.picking_id.is_some());
+
+    // 3. Verify the generated delivery picking (WH/OUT)
+    let picking_id = confirmed.order.picking_id.unwrap();
+    let picking = inventory::get_picking_by_id(&pool, picking_id).await.unwrap().unwrap();
+
+    assert_eq!(picking.partner_id, Some(2));
+    assert_eq!(picking.origin, Some(confirmed.order.name));
+    assert_eq!(picking.state, "confirmed");
+
+    // 4. Verify the stock move lines
+    let moves = inventory::get_picking_moves(&pool, picking_id).await.unwrap();
+    assert_eq!(moves.len(), 1);
+    assert_eq!(moves[0].product_id, 1);
+    assert_eq!(moves[0].product_uom_qty_milli, 3000);
+}
+
+#[tokio::test]
+async fn test_sales_order_cancellation_workflow() {
+    let pool = setup_test_db().await;
+
+    // 1. Create and confirm an order
+    let order = sales::create_sale_order(
+        &pool,
+        sales::CreateSaleOrderInput {
+            company_id: 1,
+            partner_id: 2,
+            validity_date: None,
+            currency: Some("EGP".to_string()),
+            note: None,
+            lines: vec![sales::CreateSaleOrderLineInput {
+                product_id: 2,
+                name: Some("Samsung 27 Monitor".to_string()),
+                product_uom_qty_milli: 1000,
+                product_uom_id: 1,
+                price_unit_cents: 600000,
+                discount_percent_milli: None,
+                tax_rate_milli: None,
+            }],
+        },
+    )
+    .await
+    .unwrap();
+
+    let confirmed = sales::confirm_sale_order(&pool, order.order.id).await.unwrap();
+    let picking_id = confirmed.order.picking_id.unwrap();
+
+    // 2. Cancel the sales order
+    let cancelled = sales::cancel_sale_order(&pool, confirmed.order.id).await.unwrap();
+    assert_eq!(cancelled.order.state, "cancelled");
+    assert_eq!(cancelled.order.delivery_status, "cancelled");
+
+    // 3. Verify the linked picking was also cancelled
+    let picking = inventory::get_picking_by_id(&pool, picking_id).await.unwrap().unwrap();
+    assert_eq!(picking.state, "cancelled");
 }
