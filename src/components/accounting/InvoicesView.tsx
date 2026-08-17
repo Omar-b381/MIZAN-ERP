@@ -13,6 +13,8 @@ import {
   TrendingUp,
   Printer,
   Archive,
+  FileDown,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
@@ -26,6 +28,7 @@ import {
 } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 import { PrintDocumentModal, PrintableDocumentData } from '../printing/PrintDocumentModal';
+import { exportInvoiceToPdf } from '../../lib/pdfTemplate';
 
 export const InvoicesView: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -252,55 +255,101 @@ export const InvoicesView: React.FC = () => {
     }
   };
 
+  const buildPrintableInvoiceData = async (invoice: AccountMove): Promise<PrintableDocumentData> => {
+    const detail = await api.getMove(invoice.id);
+    const invoiceLines = (detail?.lines || []).filter(
+      (l) => l.product_id !== null || (l.account_code && !['1030', '2010', '2020', '2025'].includes(l.account_code))
+    );
+
+    const printableLines = invoiceLines.length > 0
+      ? invoiceLines.map((l) => ({
+          id: l.id,
+          name: l.name || l.product_name || 'بند فاتورة',
+          quantity: (l.quantity_milli || 1000) / 1000,
+          price_unit: (l.price_unit_cents || 0) / 100,
+          tax_rate: (l.tax_rate_milli || 14000) / 1000,
+          subtotal: (l.price_unit_cents && l.quantity_milli)
+            ? ((l.price_unit_cents * l.quantity_milli) / 100000)
+            : Math.abs(l.balance_cents) / 100,
+        }))
+      : [
+          {
+            id: 1,
+            name: invoice.note || 'إجمالي بنود الفاتورة',
+            quantity: 1,
+            price_unit: invoice.amount_untaxed_cents / 100,
+            tax_rate: 14,
+            subtotal: invoice.amount_untaxed_cents / 100,
+          },
+        ];
+
+    return {
+      docType: invoice.move_type,
+      docNumber: invoice.name,
+      date: invoice.date,
+      dueDate: invoice.invoice_date_due,
+      origin: invoice.origin,
+      paymentState: invoice.payment_state,
+      companyName: 'شركة ميزان للحلول والتجارة المؤسسية',
+      companyTaxId: '100-245-890',
+      companyCommercialReg: 'س.ت 44820',
+      companyPhone: '+20 2 2456 7890',
+      companyAddress: 'القاهرة، جمهورية مصر العربية',
+      partnerName: invoice.partner_name || `طرف #${invoice.partner_id}`,
+      currency: invoice.currency || 'EGP',
+      lines: printableLines,
+      amountUntaxed: invoice.amount_untaxed_cents / 100,
+      amountTax: invoice.amount_tax_cents / 100,
+      amountTotal: invoice.amount_total_cents / 100,
+      note: invoice.note,
+    };
+  };
+
+  const handleExportSinglePdf = async (invoice: AccountMove) => {
+    try {
+      const doc = await buildPrintableInvoiceData(invoice);
+      await exportInvoiceToPdf(doc);
+    } catch (err) {
+      console.error('Failed to export invoice PDF:', err);
+    }
+  };
+
+  const handleExportSingleExcel = async (invoice: AccountMove) => {
+    try {
+      const doc = await buildPrintableInvoiceData(invoice);
+      const columns = [
+        { key: 'item', title: 'البند / الصنف', data_type: 'text' as const },
+        { key: 'qty', title: 'الكمية', data_type: 'number' as const },
+        { key: 'price', title: 'سعر الوحدة (ج.م)', data_type: 'currency' as const },
+        { key: 'tax', title: 'نسبة الضريبة (%)', data_type: 'number' as const },
+        { key: 'total', title: 'الإجمالي الصافي (ج.م)', data_type: 'currency' as const },
+      ];
+      const rows = doc.lines.map((l) => ({
+        item: l.name,
+        qty: l.quantity,
+        price: l.price_unit,
+        tax: l.tax_rate,
+        total: l.subtotal,
+      }));
+
+      await api.exportReportToXlsx({
+        title: `فاتورة ${doc.docNumber}`,
+        subtitle: `العميل / المورد: ${doc.partnerName} | التاريخ: ${doc.date}`,
+        company_name: doc.companyName || 'شركة ميزان',
+        date_range: doc.date,
+        columns,
+        rows,
+        is_rtl: true,
+      });
+    } catch (err) {
+      console.error('Failed to export invoice Excel:', err);
+    }
+  };
+
   const handlePrintInvoice = async (invoice: AccountMove) => {
     try {
-      const detail = await api.getMove(invoice.id);
-      const invoiceLines = (detail?.lines || []).filter(
-        (l) => l.product_id !== null || (l.account_code && !['1030', '2010', '2020', '2025'].includes(l.account_code))
-      );
-
-      const printableLines = invoiceLines.length > 0
-        ? invoiceLines.map((l) => ({
-            id: l.id,
-            name: l.name || l.product_name || 'بند فاتورة',
-            quantity: (l.quantity_milli || 1000) / 1000,
-            price_unit: (l.price_unit_cents || 0) / 100,
-            tax_rate: (l.tax_rate_milli || 14000) / 1000,
-            subtotal: (l.price_unit_cents && l.quantity_milli)
-              ? ((l.price_unit_cents * l.quantity_milli) / 100000)
-              : Math.abs(l.balance_cents) / 100,
-          }))
-        : [
-            {
-              id: 1,
-              name: invoice.note || 'إجمالي بنود الفاتورة',
-              quantity: 1,
-              price_unit: invoice.amount_untaxed_cents / 100,
-              tax_rate: 14,
-              subtotal: invoice.amount_untaxed_cents / 100,
-            },
-          ];
-
-      setActiveInvoiceForPrint({
-        docType: invoice.move_type,
-        docNumber: invoice.name,
-        date: invoice.date,
-        dueDate: invoice.invoice_date_due,
-        origin: invoice.origin,
-        paymentState: invoice.payment_state,
-        companyName: 'شركة ميزان للحلول والتجارة المؤسسية',
-        companyTaxId: '100-245-890',
-        companyCommercialReg: 'س.ت 44820',
-        companyPhone: '+20 2 2456 7890',
-        companyAddress: 'القاهرة، جمهورية مصر العربية',
-        partnerName: invoice.partner_name || `طرف #${invoice.partner_id}`,
-        currency: invoice.currency || 'EGP',
-        lines: printableLines,
-        amountUntaxed: invoice.amount_untaxed_cents / 100,
-        amountTax: invoice.amount_tax_cents / 100,
-        amountTotal: invoice.amount_total_cents / 100,
-        note: invoice.note,
-      });
+      const doc = await buildPrintableInvoiceData(invoice);
+      setActiveInvoiceForPrint(doc);
     } catch (err) {
       console.error('Failed to load invoice for printing:', err);
     }
@@ -573,13 +622,27 @@ export const InvoicesView: React.FC = () => {
                       )}
                     </td>
                     <td className="py-3.5 px-4 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => handleExportSinglePdf(m)}
+                          className="p-1.5 rounded hover:bg-rose-500/10 text-rose-600 transition-colors"
+                          title="تصدير ملف PDF مباشر على التيمبلت المعتمد"
+                        >
+                          <FileDown className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleExportSingleExcel(m)}
+                          className="p-1.5 rounded hover:bg-emerald-500/10 text-emerald-600 transition-colors"
+                          title="تصدير إكسيل (.xlsx)"
+                        >
+                          <FileSpreadsheet className="w-4 h-4" />
+                        </button>
                         <button
                           onClick={() => handlePrintInvoice(m)}
-                          className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
-                          title="معاينة وطباعة الفاتورة"
+                          className="p-1.5 rounded hover:bg-indigo-500/10 text-indigo-600 transition-colors"
+                          title="معاينة المستند وقالب الطباعة"
                         >
-                          <Printer className="w-3.5 h-3.5 text-indigo-600" />
+                          <Printer className="w-4 h-4" />
                         </button>
                         {m.state === 'draft' && (
                           <button

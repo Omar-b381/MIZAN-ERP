@@ -2240,6 +2240,251 @@ async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Prom
       };
       return diag as unknown as T;
     }
+
+    // Phase 9: Reports & Export Mocks
+    case 'cmd_get_trial_balance_filtered': {
+      const tb: TrialBalanceItem[] = [
+        {
+          account_id: 1,
+          account_code: '1010',
+          account_name: 'الخزينة الرئيسية (Cash on Hand)',
+          account_type: 'asset',
+          debit_sum_cents: 5000000,
+          credit_sum_cents: 0,
+          net_balance_cents: 5000000,
+        },
+        {
+          account_id: 3,
+          account_code: '1030',
+          account_name: 'العملاء والذمم المدينة (Accounts Receivable)',
+          account_type: 'asset',
+          debit_sum_cents: 7980000,
+          credit_sum_cents: 0,
+          net_balance_cents: 7980000,
+        },
+        {
+          account_id: 5,
+          account_code: '2010',
+          account_name: 'الموردون والذمم الدائنة (Accounts Payable)',
+          account_type: 'liability',
+          debit_sum_cents: 0,
+          credit_sum_cents: 22800000,
+          net_balance_cents: -22800000,
+        },
+        {
+          account_id: 8,
+          account_code: '4010',
+          account_name: 'إيرادات المبيعات (Sales Revenues)',
+          account_type: 'income',
+          debit_sum_cents: 0,
+          credit_sum_cents: 7000000,
+          net_balance_cents: -7000000,
+        },
+      ];
+      return tb as unknown as T;
+    }
+
+    case 'cmd_get_profit_and_loss': {
+      const pnl: ProfitAndLossReport = {
+        start_date: (args?.start_date as string) || '2026-08-01',
+        end_date: (args?.end_date as string) || '2026-08-31',
+        revenues: [{ account_id: 8, code: '4010', name: 'إيرادات المبيعات', amount_cents: 7000000 }],
+        cogs: [{ account_id: 9, code: '5010', name: 'تكلفة البضاعة المباعة', amount_cents: 4000000 }],
+        operating_expenses: [],
+        total_revenue_cents: 7000000,
+        total_cogs_cents: 4000000,
+        gross_profit_cents: 3000000,
+        total_operating_expenses_cents: 0,
+        net_profit_cents: 3000000,
+      };
+      return pnl as unknown as T;
+    }
+
+    case 'cmd_get_general_ledger': {
+      const gl: GeneralLedgerAccount[] = [
+        {
+          account_id: 3,
+          account_code: '1030',
+          account_name: 'العملاء والذمم المدينة',
+          opening_balance_cents: 0,
+          total_debit_cents: 7980000,
+          total_credit_cents: 0,
+          closing_balance_cents: 7980000,
+          lines: [
+            {
+              move_id: 1,
+              move_name: 'INV/2026/00001',
+              date: '2026-08-17',
+              account_id: 3,
+              account_code: '1030',
+              account_name: 'العملاء والذمم المدينة',
+              label: 'فاتورة مبيعات عميل',
+              partner_name: 'شركة الأهرام للتجارة',
+              debit_cents: 7980000,
+              credit_cents: 0,
+              balance_cents: 7980000,
+            },
+          ],
+        },
+      ];
+      return gl as unknown as T;
+    }
+
+    case 'cmd_get_sales_report': {
+      const rows: SalesReportRow[] = [
+        {
+          period_group: '2026-08',
+          partner_id: 1,
+          partner_name: 'شركة الأهرام للتجارة',
+          product_id: null,
+          product_name: null,
+          orders_count: 1,
+          qty_sold_milli: 2000,
+          amount_untaxed_cents: 7000000,
+          amount_tax_cents: 980000,
+          amount_total_cents: 7980000,
+        },
+      ];
+      return rows as unknown as T;
+    }
+
+    case 'cmd_get_purchases_report': {
+      const rows: PurchasesReportRow[] = [
+        {
+          period_group: '2026-08',
+          partner_id: 2,
+          partner_name: 'مؤسسة النيل للتوريدات',
+          product_id: null,
+          product_name: null,
+          orders_count: 1,
+          qty_purchased_milli: 10000,
+          amount_untaxed_cents: 20000000,
+          amount_tax_cents: 2800000,
+          amount_total_cents: 22800000,
+        },
+      ];
+      return rows as unknown as T;
+    }
+
+    case 'cmd_get_partner_statement': {
+      const stmt: PartnerStatementReport = {
+        partner_id: (args?.partner_id as number) || 1,
+        partner_name: 'شركة الأهرام للتجارة',
+        partner_type: 'customer',
+        start_date: (args?.start_date as string) || '2026-08-01',
+        end_date: (args?.end_date as string) || '2026-08-31',
+        opening_balance_cents: 0,
+        total_debit_cents: 7980000,
+        total_credit_cents: 0,
+        closing_balance_cents: 7980000,
+        lines: [
+          {
+            date: '2026-08-17',
+            doc_type: 'invoice',
+            reference: 'INV/2026/00001',
+            description: 'فاتورة مبيعات ضريبية',
+            debit_cents: 7980000,
+            credit_cents: 0,
+            running_balance_cents: 7980000,
+          },
+        ],
+      };
+      return stmt as unknown as T;
+    }
+
+    case 'cmd_get_partner_aging': {
+      const aging: PartnerAgingItem[] = [
+        {
+          partner_id: 1,
+          partner_name: 'شركة الأهرام للتجارة',
+          phone: '01012345678',
+          bucket_0_30_cents: 7980000,
+          bucket_31_60_cents: 0,
+          bucket_61_90_cents: 0,
+          bucket_90_plus_cents: 0,
+          total_outstanding_cents: 7980000,
+        },
+      ];
+      return aging as unknown as T;
+    }
+
+    case 'cmd_get_stock_on_hand_report': {
+      const stock: StockOnHandReportItem[] = [
+        {
+          product_id: 1,
+          default_code: 'PROD-0001',
+          product_name: 'Dell Latitude 5530 Business Laptop',
+          category_name: 'إلكترونيات',
+          warehouse_name: 'المستودع الرئيسي',
+          location_id: 8,
+          location_name: 'مخزن البضائع الداخلي',
+          quantity_on_hand_milli: 15000,
+          uom_name: 'قطعة',
+          cost_price_cents: 3000000,
+          total_valuation_cents: 45000000,
+        },
+      ];
+      return stock as unknown as T;
+    }
+
+    case 'cmd_get_stock_movement_ledger': {
+      const moves: StockMovementReportItem[] = [
+        {
+          move_id: 1,
+          date: '2026-08-17',
+          reference: 'WH/IN/00001',
+          product_id: 1,
+          default_code: 'PROD-0001',
+          product_name: 'Dell Latitude 5530 Business Laptop',
+          src_location_name: 'موقع المورد الافتراضي',
+          dest_location_name: 'المستودع الرئيسي',
+          quantity_milli: 10000,
+          uom_name: 'قطعة',
+          state: 'done',
+        },
+      ];
+      return moves as unknown as T;
+    }
+
+    case 'cmd_get_low_stock_report': {
+      const low: LowStockReportItem[] = [];
+      return low as unknown as T;
+    }
+
+    case 'cmd_export_report_to_xlsx': {
+      const req = args?.request as any;
+      console.log('Exporting XLSX in mock:', req?.title);
+      // Trigger a browser CSV download as fallback simulation
+      if (typeof window !== 'undefined' && req?.rows && req?.columns) {
+        const headers = req.columns.map((c: any) => `"${c.title}"`).join(',');
+        const rows = req.rows.map((r: any) =>
+          req.columns.map((c: any) => `"${r[c.key] ?? ''}"`).join(',')
+        ).join('\n');
+        const csvContent = '\uFEFF' + headers + '\n' + rows;
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${req.title || 'report'}.csv`;
+        link.click();
+      }
+      return 'mizan_report.xlsx' as unknown as T;
+    }
+
+    case 'cmd_export_batch_zip': {
+      const req = args?.request as any;
+      console.log('Exporting batch ZIP in mock:', req?.zip_filename);
+      // Trigger a simulated batch export in browser
+      if (typeof window !== 'undefined' && req?.files) {
+        const combinedText = req.files.map((f: any) => `=== ${f.filename} ===\n${f.content_text || ''}\n`).join('\n\n');
+        const blob = new Blob([combinedText], { type: 'text/plain;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = req.zip_filename || 'invoices_batch.txt';
+        link.click();
+      }
+      return 'invoices_batch.zip' as unknown as T;
+    }
+
     default:
       throw new Error(`Command ${cmd} not implemented in mock`);
   }

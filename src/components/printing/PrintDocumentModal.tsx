@@ -8,9 +8,8 @@ import {
   QrCode,
   FileCheck,
 } from 'lucide-react';
-import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
 import { api } from '../../lib/api';
+import { exportInvoiceToPdf } from '../../lib/pdfTemplate';
 
 export interface PrintableDocLine {
   id: number | string;
@@ -93,29 +92,7 @@ export const PrintDocumentModal: React.FC<PrintDocumentModalProps> = ({ document
   const handleSavePdf = async () => {
     try {
       setIsGeneratingPdf(true);
-      const sheet = window.document.getElementById('printable-document-sheet');
-      if (!sheet) return;
-
-      const canvas = await html2canvas(sheet, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-      });
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
-      });
-
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      const sanitizedDocNum = doc.docNumber.replace(/[/\\?%*:|"<>]/g, '_');
-      pdf.save(`${docTitle.ar}_${sanitizedDocNum}.pdf`);
+      await exportInvoiceToPdf(doc);
     } catch (err) {
       console.error('Failed to generate PDF:', err);
     } finally {
