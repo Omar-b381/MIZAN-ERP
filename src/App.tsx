@@ -81,7 +81,12 @@ export function App() {
       case 'modules':
         return <ModuleManagerView modules={modules} onRefresh={fetchInitialData} />;
       case 'settings':
-        return <SettingsView />;
+        return (
+          <SettingsView
+            onRefresh={fetchInitialData}
+            onLicenseUpdated={(status) => setLicenseStatus(status)}
+          />
+        );
       case 'activity':
         return <ActivityLogView />;
       case 'products':

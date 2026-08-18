@@ -18,7 +18,15 @@ import { api } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 import { TrialStatus, BackupInfo } from '../../types';
 
-export const SettingsView: React.FC = () => {
+interface SettingsViewProps {
+  onRefresh?: () => void;
+  onLicenseUpdated?: (status: TrialStatus) => void;
+}
+
+export const SettingsView: React.FC<SettingsViewProps> = ({
+  onRefresh,
+  onLicenseUpdated,
+}) => {
   const { t } = useTranslation();
   const { activeCompanyId } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'general' | 'license' | 'backup' | 'diagnostics'>('general');
@@ -60,6 +68,9 @@ export const SettingsView: React.FC = () => {
         setSettings((prev) => ({ ...prev, ...s }));
         setLicenseStatus(lic);
         setBackups(bList);
+        if (onLicenseUpdated) {
+          onLicenseUpdated(lic);
+        }
       } catch (err) {
         console.error('Failed to load settings data:', err);
       }
@@ -76,6 +87,9 @@ export const SettingsView: React.FC = () => {
       }
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
+      if (onRefresh) {
+        onRefresh();
+      }
     } catch (err) {
       console.error('Failed to save settings:', err);
     } finally {
@@ -101,6 +115,12 @@ export const SettingsView: React.FC = () => {
       setLicenseStatus(updated);
       setLicenseInput('');
       setLicenseMsg({ type: 'success', text: 'تم تفعيل الترخيص الدائم بنجاح!' });
+      if (onLicenseUpdated) {
+        onLicenseUpdated(updated);
+      }
+      if (onRefresh) {
+        onRefresh();
+      }
     } catch (err: any) {
       setLicenseMsg({ type: 'error', text: err.toString() || 'فشل تفعيل الترخيص' });
     } finally {
