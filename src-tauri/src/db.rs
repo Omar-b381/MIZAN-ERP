@@ -62,6 +62,13 @@ pub async fn init_db(database_url: &str) -> Result<DbPool, DbError> {
         .run(&pool)
         .await?;
 
+    // Ensure all standard modules are active by default for full out-of-the-box ERP experience
+    let _ = sqlx::query(
+        "UPDATE modules SET is_active = 1 WHERE key IN ('core', 'products', 'inventory', 'sales', 'purchases', 'accounting', 'invoices', 'payments', 'employees')"
+    )
+    .execute(&pool)
+    .await;
+
     Ok(pool)
 }
 
