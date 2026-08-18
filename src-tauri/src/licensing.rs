@@ -165,11 +165,20 @@ pub async fn get_license_and_trial_status(pool: &SqlitePool) -> Result<TrialStat
 
     let all_modules = vec![
         "core".to_string(),
+        "products".to_string(),
         "inventory".to_string(),
         "sales".to_string(),
         "purchases".to_string(),
         "accounting".to_string(),
+        "invoices".to_string(),
+        "payments".to_string(),
         "employees".to_string(),
+        "hr".to_string(),
+        "recruitment".to_string(),
+        "timeoff".to_string(),
+        "timesheet".to_string(),
+        "reports".to_string(),
+        "multi_company".to_string(),
     ];
 
     if let Ok(started_dt) = DateTime::parse_from_rfc3339(&trial_started_at) {

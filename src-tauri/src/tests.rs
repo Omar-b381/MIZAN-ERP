@@ -1473,7 +1473,9 @@ async fn test_evaluation_trial_lifecycle() {
     assert!(status.is_trial_active);
     assert!(!status.is_expired);
     assert_eq!(status.trial_days_left, 7);
-    assert_eq!(status.allowed_modules.len(), 6);
+    assert!(status.allowed_modules.len() >= 6);
+    assert!(status.allowed_modules.contains(&"sales".to_string()));
+    assert!(status.allowed_modules.contains(&"products".to_string()));
 
     // 2. Simulate trial expiry (set trial_started_at to 10 days ago)
     let past_date = (chrono::Local::now() - chrono::Duration::days(10)).to_rfc3339();

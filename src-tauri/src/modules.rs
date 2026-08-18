@@ -41,6 +41,21 @@ pub async fn is_module_active(pool: &SqlitePool, module_key: &str) -> Result<boo
     Ok(active.unwrap_or(false))
 }
 
+fn is_module_entitled(allowed: &[String], key: &str) -> bool {
+    if allowed.iter().any(|m| m == "*" || m == key) {
+        return true;
+    }
+    match key {
+        "core" => true,
+        "products" => allowed.iter().any(|m| m == "inventory" || m == "products"),
+        "invoices" | "payments" => allowed.iter().any(|m| m == "accounting" || m == key),
+        "employees" | "recruitment" | "timeoff" | "timesheet" => {
+            allowed.iter().any(|m| m == "hr" || m == "employees" || m == key)
+        }
+        _ => false,
+    }
+}
+
 /// Toggles module activation. When activating, verifies license entitlement or active trial.
 pub async fn set_module_status(
     pool: &SqlitePool,
@@ -53,7 +68,7 @@ pub async fn set_module_status(
 
     if active {
         let license_status = licensing::get_license_and_trial_status(pool).await?;
-        if !license_status.allowed_modules.iter().any(|m| m == module_key) {
+        if !is_module_entitled(&license_status.allowed_modules, module_key) {
             let current_tier = license_status.tier;
             return Ok(ModuleToggleResult {
                 key: module_key.to_string(),
