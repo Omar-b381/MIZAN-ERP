@@ -773,20 +773,26 @@ const mockSettings: Record<string, string> = {
   company_tax_id: '100-200-300',
 };
 
-let isTauriEnv = false;
-try {
-  isTauriEnv = !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ || !!(window as unknown as { __TAURI__?: unknown }).__TAURI__;
-} catch {
-  isTauriEnv = false;
+async function checkIsTauri(): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+  if ('__TAURI_INTERNALS__' in window || '__TAURI__' in window) return true;
+  try {
+    const { isTauri } = await import('@tauri-apps/api/core');
+    return isTauri();
+  } catch {
+    return false;
+  }
 }
 
 async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
-  if (isTauriEnv) {
+  const inTauri = await checkIsTauri();
+  if (inTauri) {
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       return await invoke<T>(cmd, args);
     } catch (e) {
-      console.warn(`Tauri invoke failed for ${cmd}, falling back to mock:`, e);
+      console.error(`Tauri command '${cmd}' error:`, e);
+      throw e;
     }
   }
 

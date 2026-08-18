@@ -45,6 +45,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   // License State
   const [licenseStatus, setLicenseStatus] = useState<TrialStatus | null>(null);
   const [licenseInput, setLicenseInput] = useState('');
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [parsedPreview, setParsedPreview] = useState<{ licensee?: string; tier?: string; machine_id?: string; expires_at?: string | null } | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [copiedMachineId, setCopiedMachineId] = useState(false);
   const [activating, setActivating] = useState(false);
   const [licenseMsg, setLicenseMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -77,6 +80,55 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     };
     loadInitialData();
   }, [activeCompanyId]);
+
+  const parseLicenseText = (text: string) => {
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed.payload_json) {
+        const payload = JSON.parse(parsed.payload_json);
+        setParsedPreview(payload);
+      } else if (parsed.licensee) {
+        setParsedPreview(parsed);
+      } else {
+        setParsedPreview(null);
+      }
+    } catch {
+      setParsedPreview(null);
+    }
+  };
+
+  const processLicenseFile = (file: File) => {
+    if (!file) return;
+    setSelectedFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      if (content) {
+        setLicenseInput(content.trim());
+        parseLicenseText(content.trim());
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processLicenseFile(file);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processLicenseFile(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+  };
 
   const handleSaveGeneral = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,6 +166,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       const updated = await api.activateLicense(licenseInput.trim());
       setLicenseStatus(updated);
       setLicenseInput('');
+      setSelectedFileName(null);
+      setParsedPreview(null);
       setLicenseMsg({ type: 'success', text: 'تم تفعيل الترخيص الدائم بنجاح!' });
       if (onLicenseUpdated) {
         onLicenseUpdated(updated);
@@ -371,30 +425,107 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
 
           {/* Activate License Form */}
-          <form onSubmit={handleActivateLicense} className="space-y-3 max-w-2xl">
+          <form onSubmit={handleActivateLicense} className="space-y-4 max-w-2xl">
             <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
               <KeyRound className="w-4 h-4 text-primary" />
               <span>تفعيل ترخيص تجاري جديد (.mizan)</span>
             </h3>
             <p className="text-xs text-muted-foreground">
-              ألصق محتوى ملف الترخيص الرقمي الموقّع من مسؤول ميزان ERP لترقية باقتك أو تفعيل النسخة الدائمة.
+              يمكنك رفع ملف الترخيص الرقمي الموقّع مباشرةً (.mizan) أو سحبه وإسقاطه هنا، أو لصق محتواه يدوياً.
             </p>
 
-            <textarea
-              rows={4}
-              value={licenseInput}
-              onChange={(e) => setLicenseInput(e.target.value)}
-              placeholder="ألصق كود الترخيص هنا..."
-              className="w-full bg-secondary border border-border rounded-lg p-3 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            {/* Hidden Native File Input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".mizan,.json"
+              onChange={handleFileChange}
+              className="hidden"
             />
+
+            {/* Drag & Drop File Upload Zone */}
+            <div
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onClick={() => fileInputRef.current?.click()}
+              className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
+                selectedFileName
+                  ? 'border-primary bg-primary/5 hover:bg-primary/10'
+                  : 'border-border/80 hover:border-primary/60 bg-secondary/30 hover:bg-secondary/60'
+              }`}
+            >
+              <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shadow-sm">
+                <Upload className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-foreground">
+                  {selectedFileName ? (
+                    <span className="text-primary font-mono font-semibold flex items-center gap-1.5 justify-center">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      {selectedFileName}
+                    </span>
+                  ) : (
+                    'انقر هنا لاختيار ملف الترخيص (.mizan) أو اسحبه إلى هنا'
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  يدعم ملفات التراخيص المشفرة الرقمية (.mizan, .json)
+                </p>
+              </div>
+            </div>
+
+            {/* License Payload Preview Card (if valid JSON parsed) */}
+            {parsedPreview && (
+              <div className="p-3.5 rounded-lg bg-primary/5 border border-primary/20 text-xs space-y-1.5 animate-fadeIn">
+                <div className="font-bold text-primary flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>معلومات الترخيص المكتشف في الملف:</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-foreground text-[11px] pt-1">
+                  <div>
+                    <span className="text-muted-foreground">المرخص له: </span>
+                    <span className="font-semibold">{parsedPreview.licensee || 'غير محدد'}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">الباقة: </span>
+                    <span className="font-semibold uppercase text-primary">{parsedPreview.tier || 'Enterprise'}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">الجهاز المستهدف: </span>
+                    <span className="font-mono">{parsedPreview.machine_id || '*'}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">المدة: </span>
+                    <span className="font-semibold">{parsedPreview.expires_at ? parsedPreview.expires_at.slice(0, 10) : 'دائم مدى الحياة (Perpetual)'}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Textarea Fallback for manual copy/paste */}
+            <div>
+              <label className="block text-[11px] font-medium text-muted-foreground mb-1">
+                أو ألصق كود الترخيص يدوياً (JSON):
+              </label>
+              <textarea
+                rows={3}
+                value={licenseInput}
+                onChange={(e) => {
+                  setLicenseInput(e.target.value);
+                  parseLicenseText(e.target.value);
+                }}
+                placeholder="ألصق كود الترخيص هنا في حال لم تختر ملفاً..."
+                className="w-full bg-secondary border border-border rounded-lg p-2.5 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
 
             <button
               type="submit"
-              disabled={activating}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+              disabled={activating || !licenseInput.trim()}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <KeyRound className="w-4 h-4" />
-              <span>{activating ? 'جاري التحقق...' : 'تفعيل الترخيص'}</span>
+              <span>{activating ? 'جاري التفعيل والتحقق...' : 'تفعيل وحفظ الترخيص الدائم'}</span>
             </button>
           </form>
         </div>
