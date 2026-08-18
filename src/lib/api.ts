@@ -784,12 +784,28 @@ async function checkIsTauri(): Promise<boolean> {
   }
 }
 
+function toCamelCase(str: string): string {
+  return str.replace(/_([a-z0-9])/g, (_, letter) => letter.toUpperCase());
+}
+
+function normalizeTauriArgs(args?: Record<string, unknown>): Record<string, unknown> | undefined {
+  if (!args) return undefined;
+  const normalized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(args)) {
+    normalized[key] = value;
+    const camelKey = toCamelCase(key);
+    normalized[camelKey] = value;
+  }
+  return normalized;
+}
+
 async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   const inTauri = await checkIsTauri();
   if (inTauri) {
     try {
       const { invoke } = await import('@tauri-apps/api/core');
-      return await invoke<T>(cmd, args);
+      const normalizedArgs = normalizeTauriArgs(args);
+      return await invoke<T>(cmd, normalizedArgs);
     } catch (e) {
       console.error(`Tauri command '${cmd}' error:`, e);
       throw e;
@@ -2623,15 +2639,32 @@ export const api = {
   getMachineId: () => invokeTauri<string>('cmd_get_machine_id'),
   getLicenseInfo: () => invokeTauri<TrialStatus>('cmd_get_license_info'),
   activateLicense: (license_content: string) =>
-    invokeTauri<TrialStatus>('cmd_activate_license', { license_content }),
+    invokeTauri<TrialStatus>('cmd_activate_license', {
+      license_content,
+      licenseContent: license_content,
+    }),
   createBackup: (custom_backup_folder?: string) =>
-    invokeTauri<BackupInfo>('cmd_create_backup', { custom_backup_folder }),
+    invokeTauri<BackupInfo>('cmd_create_backup', {
+      custom_backup_folder,
+      customBackupFolder: custom_backup_folder,
+    }),
   listBackups: (custom_backup_folder?: string) =>
-    invokeTauri<BackupInfo[]>('cmd_list_backups', { custom_backup_folder }),
+    invokeTauri<BackupInfo[]>('cmd_list_backups', {
+      custom_backup_folder,
+      customBackupFolder: custom_backup_folder,
+    }),
   restoreBackup: (backup_file_path: string, custom_backup_folder?: string) =>
-    invokeTauri<RestoreResult>('cmd_restore_backup', { backup_file_path, custom_backup_folder }),
+    invokeTauri<RestoreResult>('cmd_restore_backup', {
+      backup_file_path,
+      backupFilePath: backup_file_path,
+      custom_backup_folder,
+      customBackupFolder: custom_backup_folder,
+    }),
   exportDiagnostics: (export_dest: string) =>
-    invokeTauri<DiagnosticExportResult>('cmd_export_diagnostics', { export_dest }),
+    invokeTauri<DiagnosticExportResult>('cmd_export_diagnostics', {
+      export_dest,
+      exportDest: export_dest,
+    }),
 
   // Phase 9: Printing, Reports & Data Export
   getTrialBalanceFiltered: (company_id: number, start_date?: string, end_date?: string) =>
